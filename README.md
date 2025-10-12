@@ -55,7 +55,7 @@ For local development:
 
 ```bash
 git clone https://github.com/Knowrithm/knowrithm-typescript-sdk.git
-cd knowrithm-sdk-ts
+cd knowrithm-typescript-sdk
 npm install
 npm run build
 ```
