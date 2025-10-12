@@ -1790,7 +1790,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Need help? We're here for you:
 
 - **Documentation**: [https://docs.knowrithm.org](https://docs.knowrithm.org)
-- **GitHub Issues**: [https://github.com/Knowrithm/knowrithm-sdk-ts/issues](https://github.com/Knowrithm/knowrithm-sdk-ts/issues)
+- **GitHub Issues**: [https://github.com/Knowrithm/knowrithm-sdk-ts/issues](https://github.com/Knowrithm/knowrithm-typescript-sdk/issues)
 - **Email**: support@knowrithm.org
 - **Support Portal**: [https://support.knowrithm.org](https://support.knowrithm.org)
 
