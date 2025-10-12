@@ -468,7 +468,7 @@ await client.documents.uploadDocuments('agent-id', {
 
 ## API Reference
 
-For detailed API documentation, visit [https://docs.knowrithm.com](https://docs.knowrithm.com)
+For detailed API documentation, visit [https://docs.knowrithm.org](https://docs.knowrithm.org)
 
 ## Contributing
 
@@ -480,7 +480,7 @@ MIT License - see LICENSE file for details.
 
 ## Support
 
-For support, email support@knowrithm.com or visit our [support portal](https://support.knowrithm.com).
+For support, email support@knowrithm.org or visit our [support portal](https://support.knowrithm.org).
 
 
 // Example usage file: examples/basic-usage.ts
