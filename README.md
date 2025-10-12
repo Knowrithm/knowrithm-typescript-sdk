@@ -1798,7 +1798,7 @@ Need help? We're here for you:
 
 ## Changelog
 
-### v1.0.0 (2024-01-15)
+### v1.0.0 (2025-10-12)
 - Initial release
 - Complete API coverage
 - Streaming support
