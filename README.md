@@ -54,7 +54,7 @@ pnpm add @knowrithm/sdk
 For local development:
 
 ```bash
-git clone https://github.com/Knowrithm/knowrithm-sdk-ts.git
+git clone https://github.com/Knowrithm/knowrithm-typescript-sdk.git
 cd knowrithm-sdk-ts
 npm install
 npm run build

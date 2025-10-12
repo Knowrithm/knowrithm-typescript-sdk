@@ -1,4 +1,3 @@
-// src/wrappers/agent.ts
 import { KnowrithmClient } from '../client';
 import { EntityType } from '../types/enums';
 
@@ -40,7 +39,8 @@ export class KnowrithmAgent {
       conversationId = conv.id;
     }
 
-    return this.client.messages.sendMessage(conversationId, message, {
+    // Type assertion since we ensure conversationId is defined above
+    return this.client.messages.sendMessage(conversationId!, message, {
       stream: options?.stream,
     });
   }
