@@ -481,7 +481,7 @@ MIT License - see LICENSE file for details.
 ## Support
 
 For support, email support@knowrithm.com or visit our [support portal](https://support.knowrithm.com).
-```
+
 
 // Example usage file: examples/basic-usage.ts
 ```typescript
@@ -580,7 +580,8 @@ async function streamingExample() {
 }
 
 streamingExample();
-```
+
+```typescript
 
 // .eslintrc.js
 module.exports = {
