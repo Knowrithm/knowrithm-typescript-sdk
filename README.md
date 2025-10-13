@@ -26,7 +26,7 @@ The Knowrithm TypeScript SDK provides a comprehensive, type-safe interface for i
   - [DocumentService](#documentservice)
   - [ConversationService & MessageService](#conversationservice--messageservice)
   - [LeadService](#leadservice)
-  - [LLMSettingsService](#llmsettingsservice)
+  - [SettingsService](#settingsservice)
   - [ProviderService](#providerservice)
 - [High-Level Wrappers](#high-level-wrappers)
 - [Streaming Messages](#streaming-messages)
@@ -95,6 +95,7 @@ const queued = await client.messages.sendMessage(
 );
 
 console.log('Status:', queued.status);        // -> "queued"
+console.log('Task ID:', queued.task_id);
 console.log('Poll URL:', queued.poll_url);    // -> "/v1/conversation/<id>/messages"
 
 // Poll for new messages once the task completes
@@ -165,18 +166,30 @@ Handles user authentication, registration, and session management.
   - Payload: `{ company_id, email, username, password, first_name, last_name }`
   - Returns: `Promise<any>`
 
+- **`createUser(payload, headers)`** - `POST /v1/auth/user`
+  - Admin-only user creation within the authenticated company
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT (admin/super-admin)
+  - Payload: `{ email, username, password, first_name, last_name, company_id? }` (company_id only for super-admin)
+  - Returns: `Promise<{ user: User }>`
+
+- **`getUser(userId, headers)`** - `GET /v1/user/<user_id>`
+  - Fetches user details within the company
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT (admin)
+  - Returns: `Promise<User>`
+
 - **`login(email, password, headers?)`** - `POST /v1/auth/login`
   - Authenticates user and returns JWT tokens
+  - Public endpoint
   - Returns: `Promise<AuthResponse>` with `access_token` and `refresh_token`
 
-- **`refreshAccessToken(refreshToken, headers?)`** - `POST /v1/auth/refresh`
-  - Exchanges refresh token for new access token
-  - Pass `Authorization: Bearer <refresh JWT>` in headers
-  - Returns: `Promise<{ access_token: string }>`
+- **`getCurrentUser(headers)`** - `GET /v1/auth/user/me`
+  - Returns authenticated user with active company
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<{ user: User; company: Company }>`
 
 - **`logout(headers)`** - `POST /v1/auth/logout`
   - Revokes the current JWT session
-  - Requires authentication
+  - Requires: `Authorization: Bearer <JWT>`
   - Returns: `Promise<void>`
 
 - **`sendVerificationEmail(email, headers?)`** - `POST /v1/send`
@@ -186,17 +199,13 @@ Handles user authentication, registration, and session management.
 
 - **`verifyEmail(token, headers?)`** - `POST /v1/verify`
   - Confirms email ownership with verification token
+  - Public endpoint
   - Returns: `Promise<any>`
 
-- **`getCurrentUser(headers)`** - `GET /v1/auth/user/me`
-  - Returns authenticated user with active company
-  - Requires JWT authentication
-  - Returns: `Promise<{ user: User; company: Company }>`
-
-- **`createUser(payload, headers?)`** - `POST /v1/auth/user`
-  - Admin-only user creation
-  - Payload: `{ email, username, password, company_id? }`
-  - Returns: `Promise<{ user: User }>`
+- **`refreshAccessToken(refreshToken, headers?)`** - `POST /v1/auth/refresh`
+  - Exchanges refresh token for new access token
+  - Pass `Authorization: Bearer <refresh JWT>` in headers
+  - Returns: `Promise<{ access_token: string }>`
 
 ---
 
@@ -206,51 +215,62 @@ Manages API key lifecycle and usage analytics.
 
 #### Methods
 
-- **`createApiKey(payload, headers?)`** - `POST /v1/auth/api-keys`
+- **`createApiKey(payload, headers)`** - `POST /v1/auth/api-keys`
   - Creates new API key for authenticated user
-  - Payload: `{ name?, scopes?, permissions?, expires_at? }`
+  - Requires: `Authorization: Bearer <JWT>`
+  - Payload: `{ name?, scopes?, permissions?, expires_in_days? }`
   - Returns: `Promise<{ api_key: ApiKey; secret: string }>`
 
 - **`listApiKeys(headers)`** - `GET /v1/auth/api-keys`
   - Lists all active API keys owned by user
+  - Requires: `Authorization: Bearer <JWT>`
   - Returns: `Promise<{ api_keys: ApiKey[] }>`
 
 - **`deleteApiKey(apiKeyId, headers)`** - `DELETE /v1/auth/api-keys/<id>`
   - Revokes an API key permanently
+  - Requires: `Authorization: Bearer <JWT>`
   - Returns: `Promise<void>`
 
 - **`validateCredentials(headers)`** - `GET /v1/auth/validate`
   - Validates current credentials and returns metadata
+  - Requires: `Authorization: Bearer <JWT>`
   - Returns: `Promise<{ valid: boolean; metadata: any }>`
 
-- **`getApiKeyOverview(days?, headers?)`** - `GET /v1/overview`
+- **`getApiKeyOverview(days?, headers)`** - `GET /v1/overview`
   - High-level analytics for API key usage
+  - Requires: `X-API-Key` + `X-API-Secret` (scopes `read`, `admin`) or JWT (admin)
   - Parameters: `days` (default: 30)
   - Returns: `Promise<ApiKeyOverview>`
 
-- **`getUsageTrends(days?, granularity?, headers?)`** - `GET /v1/usage-trends`
+- **`getUsageTrends(days?, granularity?, headers)`** - `GET /v1/usage-trends`
   - Returns usage patterns by day/hour
+  - Requires: `X-API-Key` + `X-API-Secret` (scopes `read`, `admin`) or JWT (admin)
   - Parameters: `days`, `granularity` ('daily' | 'hourly')
   - Returns: `Promise<UsageTrend[]>`
 
-- **`getTopEndpoints(days?, headers?)`** - `GET /v1/top-endpoints`
+- **`getTopEndpoints(days?, headers)`** - `GET /v1/top-endpoints`
   - Most frequently used endpoints per company
+  - Requires: `X-API-Key` + `X-API-Secret` (scopes `read`, `admin`) or JWT (admin)
   - Returns: `Promise<EndpointUsage[]>`
 
-- **`getApiKeyPerformance(days?, headers?)`** - `GET /v1/api-key-performance`
+- **`getApiKeyPerformance(days?, headers)`** - `GET /v1/api-key-performance`
   - Performance metrics grouped by key
+  - Requires: `X-API-Key` + `X-API-Secret` (scopes `read`, `admin`) or JWT (admin)
   - Returns: `Promise<KeyPerformance[]>`
 
-- **`getErrorAnalysis(days?, headers?)`** - `GET /v1/error-analysis`
+- **`getErrorAnalysis(days?, headers)`** - `GET /v1/error-analysis`
   - Error distribution and status codes
+  - Requires: `X-API-Key` + `X-API-Secret` (scopes `read`, `admin`) or JWT (admin)
   - Returns: `Promise<ErrorAnalysis>`
 
-- **`getRateLimitAnalysis(days?, headers?)`** - `GET /v1/rate-limit-analysis`
+- **`getRateLimitAnalysis(days?, headers)`** - `GET /v1/rate-limit-analysis`
   - Rate limit consumption overview
+  - Requires: `X-API-Key` + `X-API-Secret` (scopes `read`, `admin`) or JWT (admin)
   - Returns: `Promise<RateLimitAnalysis>`
 
-- **`getDetailedUsage(apiKeyId, days?, headers?)`** - `GET /v1/detailed-usage/<id>`
+- **`getDetailedUsage(apiKeyId, days?, headers)`** - `GET /v1/detailed-usage/<id>`
   - Fine-grained request logs for specific key
+  - Requires: `X-API-Key` + `X-API-Secret` (scopes `read`, `admin`) or JWT (admin)
   - Returns: `Promise<DetailedUsageLog[]>`
 
 ---
@@ -263,16 +283,14 @@ User profile management operations.
 
 - **`getProfile(headers)`** - `GET /v1/user/profile`
   - Returns authenticated user's profile
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<UserProfile>`
 
 - **`updateProfile(payload, headers)`** - `PUT /v1/user/profile`
   - Updates user profile fields
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Payload: `{ first_name?, last_name?, timezone?, language?, preferences? }`
   - Returns: `Promise<UserProfile>`
-
-- **`getUser(userId, headers)`** - `GET /v1/user/<user_id>`
-  - Fetches another user's details (admin only)
-  - Returns: `Promise<User>`
 
 ---
 
@@ -287,62 +305,75 @@ Geographic data and company address management.
   - Public endpoint
   - Returns: `Promise<{ message: string }>`
 
-- **`createCountry(name, isoCode?, headers?)`** - `POST /v1/country`
+- **`createCountry(name, isoCode?, headers)`** - `POST /v1/country`
   - Admin-only country creation
+  - Requires: `Authorization: Bearer <JWT>` (admin role)
   - Returns: `Promise<Country>`
 
 - **`listCountries(headers?)`** - `GET /v1/country`
   - Fetches all countries
+  - Public endpoint
   - Returns: `Promise<Country[]>`
 
 - **`getCountry(countryId, headers?)`** - `GET /v1/country/<id>`
   - Returns country with nested states
+  - Public endpoint
   - Returns: `Promise<CountryWithStates>`
 
-- **`updateCountry(countryId, name?, isoCode?, headers?)`** - `PATCH /v1/country/<id>`
+- **`updateCountry(countryId, name?, isoCode?, headers)`** - `PATCH /v1/country/<id>`
   - Updates country information
+  - Requires: `Authorization: Bearer <JWT>` (admin role)
   - Returns: `Promise<Country>`
 
-- **`createState(name, countryId, headers?)`** - `POST /v1/state`
+- **`createState(name, countryId, headers)`** - `POST /v1/state`
   - Admin-only state creation
+  - Requires: `Authorization: Bearer <JWT>` (admin role)
   - Returns: `Promise<State>`
 
 - **`listStatesByCountry(countryId, headers?)`** - `GET /v1/state/country/<country_id>`
   - Lists all states in a country
+  - Public endpoint
   - Returns: `Promise<State[]>`
 
 - **`getState(stateId, headers?)`** - `GET /v1/state/<id>`
   - Returns state with nested cities
+  - Public endpoint
   - Returns: `Promise<StateWithCities>`
 
-- **`updateState(stateId, name?, countryId?, headers?)`** - `PATCH /v1/state/<id>`
+- **`updateState(stateId, name?, countryId?, headers)`** - `PATCH /v1/state/<id>`
   - Updates state information
+  - Requires: `Authorization: Bearer <JWT>` (admin role)
   - Returns: `Promise<State>`
 
-- **`createCity(name, stateId, postalCodePrefix?, headers?)`** - `POST /v1/city`
+- **`createCity(name, stateId, postalCodePrefix?, headers)`** - `POST /v1/city`
   - Admin-only city creation
+  - Requires: `Authorization: Bearer <JWT>` (admin role)
   - Returns: `Promise<City>`
 
 - **`listCitiesByState(stateId, headers?)`** - `GET /v1/city/state/<state_id>`
   - Lists all cities in a state
+  - Public endpoint
   - Returns: `Promise<City[]>`
 
 - **`getCity(cityId, headers?)`** - `GET /v1/city/<id>`
   - Returns city details
+  - Public endpoint
   - Returns: `Promise<City>`
 
-- **`updateCity(cityId, name?, stateId?, postalCodePrefix?, headers?)`** - `PATCH /v1/city/<id>`
+- **`updateCity(cityId, name?, stateId?, postalCodePrefix?, headers)`** - `PATCH /v1/city/<id>`
   - Updates city information
+  - Requires: `Authorization: Bearer <JWT>` (admin role)
   - Returns: `Promise<City>`
 
-- **`createAddress(address, cityId, stateId, countryId, options?, headers?)`** - `POST /v1/address`
+- **`createAddress(address, cityId, stateId, countryId, options?, headers)`** - `POST /v1/address`
   - Creates company address with coordinates
+  - Requires: `Authorization: Bearer <JWT>` (admin role)
   - Options: `{ postal_code?, lat?, lan?, is_primary? }`
-  - Admin-only
   - Returns: `Promise<Address>`
 
-- **`getCompanyAddress(headers?)`** - `GET /v1/address`
+- **`getCompanyAddress(headers)`** - `GET /v1/address`
   - Fetches authenticated company's address
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Address>`
 
 ---
@@ -353,50 +384,59 @@ Administrative operations for user and system management.
 
 #### Methods
 
-- **`listUsers(params?, headers?)`** - `GET /v1/admin/user` or `/v1/super-admin/company/<id>/user`
+- **`listUsers(params?, headers)`** - `GET /v1/admin/user` or `/v1/super-admin/company/<id>/user`
   - Lists users with filtering and pagination
-  - Params: `{ company_id?, status?, role?, search?, start_date?, end_date?, page?, per_page?, sort_by?, sort_order? }`
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`) or JWT (admin/super-admin)
+  - Params: `{ company_id?, status?, role?, email_verified?, two_factor_enabled?, search?, created_after?, created_before?, last_login_after?, last_login_before?, never_logged_in?, locked?, high_login_attempts?, timezone?, language?, include_deleted?, only_deleted?, page?, per_page?, sort_by?, sort_order? }`
   - Returns: `Promise<PaginatedResponse<User>>`
 
-- **`getUser(userId, headers?)`** - `GET /v1/admin/user/<user_id>`
+- **`getUser(userId, headers)`** - `GET /v1/admin/user/<user_id>`
   - Gets detailed user information
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`) or JWT (admin)
   - Returns: `Promise<User>`
 
-- **`getCompanySystemMetrics(companyId?, headers?)`** - `GET /v1/admin/system-metric`
+- **`getCompanySystemMetrics(companyId?, headers)`** - `GET /v1/admin/system-metric` or `/v1/super-admin/company/<id>/system-metric`
   - Retrieves system performance metrics
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`) or JWT (admin/super-admin)
   - Returns: `Promise<SystemMetrics>`
 
-- **`getAuditLogs(params?, headers?)`** - `GET /v1/audit-log`
+- **`getAuditLogs(params?, headers)`** - `GET /v1/audit-log`
   - Fetches audit logs with filters
-  - Params: `{ entity_type?, entity_id?, event_type?, user_id?, risk_level?, start_date?, end_date?, page?, limit? }`
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`)
+  - Params: `{ entity_type?, event_type?, risk_level?, limit?, offset? }`
   - Returns: `Promise<PaginatedResponse<AuditLog>>`
 
-- **`getSystemConfiguration(headers?)`** - `GET /v1/config`
+- **`getSystemConfiguration(headers)`** - `GET /v1/config`
   - Reads system configuration values
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`)
   - Sensitive keys hidden from non-super-admins
   - Returns: `Promise<SystemConfig[]>`
 
-- **`upsertSystemConfiguration(key, value, options?, headers?)`** - `PATCH /v1/config`
+- **`upsertSystemConfiguration(key, value, options?, headers)`** - `PATCH /v1/config`
   - Creates or updates configuration entry
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`)
   - Options: `{ config_type?, description?, is_sensitive? }`
   - Returns: `Promise<SystemConfig>`
 
-- **`forcePasswordReset(userId, headers?)`** - `POST /v1/user/<id>/force-password-reset`
+- **`forcePasswordReset(userId, headers)`** - `POST /v1/user/<id>/force-password-reset`
   - Forces user to reset password on next login
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`)
   - Returns: `Promise<void>`
 
-- **`impersonateUser(userId, headers?)`** - `POST /v1/user/<id>/impersonate`
+- **`impersonateUser(userId, headers)`** - `POST /v1/user/<id>/impersonate`
   - Generates impersonation token for user
-  - Super-admin only
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`, super-admin role)
   - Returns: `Promise<{ token: string }>`
 
-- **`updateUserStatus(userId, status, reason?, headers?)`** - `PATCH /v1/user/<id>/status`
+- **`updateUserStatus(userId, status, reason?, headers)`** - `PATCH /v1/user/<id>/status`
   - Updates user account status
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`)
   - Status: `'active' | 'suspended' | 'inactive'`
   - Returns: `Promise<User>`
 
-- **`updateUserRole(userId, role, headers?)`** - `PATCH /v1/user/<id>/role`
+- **`updateUserRole(userId, role, headers)`** - `PATCH /v1/user/<id>/role`
   - Changes user role
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`, super-admin role)
   - Role: `'super_admin' | 'admin' | 'user' | 'viewer'`
   - Returns: `Promise<User>`
 
@@ -408,54 +448,66 @@ AI agent creation and management.
 
 #### Methods
 
-- **`createAgent(payload, headers?)`** - `POST /v1/agent`
+- **`createAgent(payload, headers)`** - `POST /v1/agent`
   - Creates new AI agent
-  - Payload: `{ name, description?, avatar_url?, llm_settings?, company_id? }`
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`)
+  - Payload: `{ name, description?, avatar_url?, llm_settings_id?, personality_traits?, capabilities?, operating_hours?, languages?, status? }`
   - Returns: `Promise<{ agent: Agent }>`
 
 - **`getAgent(agentId, headers?)`** - `GET /v1/agent/<id>`
-  - Retrieves agent details (public endpoint)
+  - Retrieves agent details
+  - Public endpoint
   - Returns: `Promise<Agent>`
 
-- **`listAgents(params?, headers?)`** - `GET /v1/agent`
+- **`listAgents(params?, headers)`** - `GET /v1/agent`
   - Lists agents with filtering
-  - Params: `{ company_id?, status?, search?, page?, per_page? }`
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Params: `{ company_id?, status?, search?, page?, per_page? }` (company_id only for super-admin)
   - Returns: `Promise<PaginatedResponse<Agent>>`
 
-- **`updateAgent(agentId, payload, headers?)`** - `PUT /v1/agent/<id>`
+- **`updateAgent(agentId, payload, headers)`** - `PUT /v1/agent/<id>`
   - Updates agent configuration
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Agent>`
 
-- **`deleteAgent(agentId, headers?)`** - `DELETE /v1/agent/<id>`
-  - Soft deletes an agent
+- **`deleteAgent(agentId, headers)`** - `DELETE /v1/agent/<id>`
+  - Soft deletes an agent (requires no active conversations)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`restoreAgent(agentId, headers?)`** - `PATCH /v1/agent/<id>/restore`
+- **`restoreAgent(agentId, headers)`** - `PATCH /v1/agent/<id>/restore`
   - Restores soft-deleted agent
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Agent>`
 
-- **`getEmbedCode(agentId, headers?)`** - `GET /v1/agent/<id>/embed-code`
+- **`getEmbedCode(agentId, headers)`** - `GET /v1/agent/<id>/embed-code`
   - Generates widget embed code
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<{ embed_code: string }>`
 
-- **`testAgent(agentId, query?, headers?)`** - `POST /v1/agent/<id>/test`
+- **`testAgent(agentId, query?, headers)`** - `POST /v1/agent/<id>/test`
   - Tests agent with sample query
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<{ response: string }>`
 
-- **`getAgentStats(agentId, headers?)`** - `GET /v1/agent/<id>/stats`
+- **`getAgentStats(agentId, headers)`** - `GET /v1/agent/<id>/stats`
   - Retrieves agent usage statistics
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<AgentStats>`
 
-- **`cloneAgent(agentId, name?, llmSettingsId?, headers?)`** - `POST /v1/agent/<id>/clone`
+- **`cloneAgent(agentId, name?, llmSettingsId?, headers)`** - `POST /v1/agent/<id>/clone`
   - Clones agent with optional new name
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Agent>`
 
 - **`fetchWidgetScript(headers?)`** - `GET /widget.js`
   - Returns public widget JavaScript
+  - Public endpoint
   - Returns: `Promise<string>`
 
 - **`renderTestPage(bodyHtml, headers?)`** - `POST /test`
   - Renders test HTML page
+  - Public endpoint (internal use)
   - Returns: `Promise<string>`
 
 ---
@@ -466,44 +518,54 @@ Analytics, metrics, and data export capabilities.
 
 #### Methods
 
-- **`getDashboardOverview(companyId?, headers?)`** - `GET /v1/analytic/dashboard`
+- **`getDashboardOverview(companyId?, headers)`** - `GET /v1/analytic/dashboard`
   - High-level dashboard metrics
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<DashboardOverview>`
 
-- **`getAgentAnalytics(agentId, startDate?, endDate?, headers?)`** - `GET /v1/analytic/agent/<agent_id>`
+- **`getAgentAnalytics(agentId, startDate?, endDate?, headers)`** - `GET /v1/analytic/agent/<agent_id>`
   - Detailed agent performance metrics
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<AgentAnalytics>`
 
-- **`getAgentPerformanceComparison(agentId, startDate?, endDate?, headers?)`** - `GET /v1/analytic/agent/<agent_id>/performance-comparison`
+- **`getAgentPerformanceComparison(agentId, startDate?, endDate?, headers)`** - `GET /v1/analytic/agent/<agent_id>/performance-comparison`
   - Compares agent performance over time
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<PerformanceComparison>`
 
-- **`getConversationAnalytics(conversationId, headers?)`** - `GET /v1/analytic/conversation/<conversation_id>`
+- **`getConversationAnalytics(conversationId, headers)`** - `GET /v1/analytic/conversation/<conversation_id>`
   - Analytics for specific conversation
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<ConversationAnalytics>`
 
-- **`getLeadAnalytics(startDate?, endDate?, companyId?, headers?)`** - `GET /v1/analytic/leads`
+- **`getLeadAnalytics(startDate?, endDate?, companyId?, headers)`** - `GET /v1/analytic/leads`
   - Lead generation and conversion metrics
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<LeadAnalytics>`
 
-- **`getUsageMetrics(startDate?, endDate?, headers?)`** - `GET /v1/analytic/usage`
+- **`getUsageMetrics(startDate?, endDate?, headers)`** - `GET /v1/analytic/usage`
   - Platform usage statistics
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<UsageMetrics>`
 
-- **`searchDocuments(query, agentId, limit?, headers?)`** - `POST /v1/search/document`
+- **`searchDocuments(query, agentId, limit?, headers)`** - `POST /v1/search/document`
   - Semantic document search
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<DocumentSearchResult[]>`
 
-- **`searchDatabase(query, connectionId?, headers?)`** - `POST /v1/search/database`
+- **`searchDatabase(query, connectionId?, headers)`** - `POST /v1/search/database`
   - Database schema search
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<DatabaseSearchResult[]>`
 
-- **`triggerSystemMetricCollection(headers?)`** - `POST /v1/system-metric`
+- **`triggerSystemMetricCollection(headers)`** - `POST /v1/system-metric`
   - Manually triggers metric collection
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`exportAnalytics(exportType, exportFormat, startDate?, endDate?, headers?)`** - `POST /v1/analytic/export`
+- **`exportAnalytics(exportType, exportFormat, startDate?, endDate?, headers)`** - `POST /v1/analytic/export`
   - Exports analytics data
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Type: `'conversations' | 'leads' | 'agents' | 'usage'`
   - Format: `'json' | 'csv'`
   - Returns: `Promise<Blob | string>`
@@ -521,56 +583,69 @@ Company management and configuration.
 #### Methods
 
 - **`createCompany(payload, logoPath?, headers?)`** - `POST /v1/company`
-  - Creates new company (supports multipart for logo)
-  - Payload: `{ name, email, website?, phone?, industry? }`
+  - Creates new company (supports multipart for logo or JSON)
+  - Public endpoint (typically internal use)
+  - Payload: `{ name, email, website?, phone?, industry?, logo?, address_id? }`
   - Returns: `Promise<Company>`
 
-- **`listCompanies(page?, perPage?, headers?)`** - `GET /v1/super-admin/company`
+- **`listCompanies(page?, perPage?, headers)`** - `GET /v1/super-admin/company`
   - Lists all companies (super-admin only)
+  - Requires: `Authorization: Bearer <JWT>` (super-admin)
   - Returns: `Promise<PaginatedResponse<Company>>`
 
-- **`getCompany(headers?)`** - `GET /v1/company`
+- **`getCompany(headers)`** - `GET /v1/company`
   - Gets authenticated company details
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Company>`
 
-- **`getCompanyStatistics(companyId?, days?, headers?)`** - `GET /v1/company/statistics`
+- **`getCompanyStatistics(companyId?, days?, headers)`** - `GET /v1/company/<id>/statistics` or `/v1/company/statistics`
   - Retrieves company statistics
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<CompanyStatistics>`
 
-- **`listDeletedCompanies(headers?)`** - `GET /v1/company/deleted`
+- **`listDeletedCompanies(headers)`** - `GET /v1/company/deleted`
   - Lists soft-deleted companies
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Company[]>`
 
-- **`updateCompany(companyId, payload, logoPath?, headers?)`** - `PUT /v1/company/<id>`
+- **`updateCompany(companyId, payload, logoPath?, headers)`** - `PUT /v1/company/<id>`
   - Updates company (full replacement)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `admin`) or JWT (admin/super-admin)
   - Returns: `Promise<Company>`
 
-- **`patchCompany(companyId, payload, headers?)`** - `PATCH /v1/company/<id>`
+- **`patchCompany(companyId, payload, headers)`** - `PATCH /v1/company/<id>`
   - Partial company update
+  - Requires: `Authorization: Bearer <JWT>` (super-admin)
   - Returns: `Promise<Company>`
 
-- **`deleteCompany(companyId, headers?)`** - `DELETE /v1/company/<id>`
+- **`deleteCompany(companyId, headers)`** - `DELETE /v1/company/<id>`
   - Soft deletes company
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`restoreCompany(companyId, headers?)`** - `PATCH /v1/company/<id>/restore`
+- **`restoreCompany(companyId, headers)`** - `PATCH /v1/company/<id>/restore`
   - Restores soft-deleted company
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Company>`
 
-- **`cascadeDeleteCompany(companyId, deleteRelated?, headers?)`** - `DELETE /v1/company/<id>/cascade-delete`
+- **`cascadeDeleteCompany(companyId, deleteRelated?, headers)`** - `DELETE /v1/company/<id>/cascade-delete`
   - Hard deletes company and optionally related data
+  - Requires: `Authorization: Bearer <JWT>` (super-admin)
   - Returns: `Promise<void>`
 
-- **`getRelatedDataSummary(companyId, headers?)`** - `GET /v1/company/<id>/related-data`
+- **`getRelatedDataSummary(companyId, headers)`** - `GET /v1/company/<id>/related-data`
   - Summarizes related entities before deletion
+  - Requires: `Authorization: Bearer <JWT>` (super-admin)
   - Returns: `Promise<RelatedDataSummary>`
 
-- **`bulkDeleteCompanies(companyIds, headers?)`** - `DELETE /v1/company/bulk-delete`
+- **`bulkDeleteCompanies(companyIds, headers)`** - `DELETE /v1/company/bulk-delete`
   - Soft deletes multiple companies
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ deleted: number }>`
 
-- **`bulkRestoreCompanies(companyIds, headers?)`** - `PATCH /v1/company/bulk-restore`
+- **`bulkRestoreCompanies(companyIds, headers)`** - `PATCH /v1/company/bulk-restore`
   - Restores multiple companies
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ restored: number }>`
 
 ---
@@ -581,95 +656,183 @@ Database connection management and text-to-SQL functionality.
 
 #### Methods
 
-- **`createConnection(name, url, databaseType, agentId, connectionParams?, headers?)`** - `POST /v1/database-connection`
+- **`createConnection(name, url, databaseType, agentId, connectionParams?, headers)`** - `POST /v1/database-connection`
   - Creates database connection
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Database types: `'postgres' | 'mysql' | 'mongodb' | 'sqlite'`
   - Returns: `Promise<DatabaseConnection>`
 
-- **`listConnections(params?, headers?)`** - `GET /v1/database-connection`
+- **`listConnections(params?, headers)`** - `GET /v1/database-connection`
   - Lists database connections with filtering
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<PaginatedResponse<DatabaseConnection>>`
 
-- **`getConnection(connectionId, headers?)`** - `GET /v1/database-connection/<id>`
+- **`getConnection(connectionId, headers)`** - `GET /v1/database-connection/<id>`
   - Gets connection details
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<DatabaseConnection>`
 
-- **`updateConnection(connectionId, payload, headers?)`** - `PUT /v1/database-connection/<id>`
+- **`updateConnection(connectionId, payload, headers)`** - `PUT /v1/database-connection/<id>`
   - Updates connection (full replacement)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<DatabaseConnection>`
 
-- **`patchConnection(connectionId, updates, headers?)`** - `PATCH /v1/database-connection/<id>`
+- **`patchConnection(connectionId, updates, headers)`** - `PATCH /v1/database-connection/<id>`
   - Partial connection update
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<DatabaseConnection>`
 
-- **`deleteConnection(connectionId, headers?)`** - `DELETE /v1/database-connection/<id>`
+- **`deleteConnection(connectionId, headers)`** - `DELETE /v1/database-connection/<id>`
   - Soft deletes connection
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`restoreConnection(connectionId, headers?)`** - `PATCH /v1/database-connection/<id>/restore`
+- **`restoreConnection(connectionId, headers)`** - `PATCH /v1/database-connection/<id>/restore`
   - Restores deleted connection
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<DatabaseConnection>`
 
-- **`listDeletedConnections(headers?)`** - `GET /v1/database-connection/deleted`
+- **`listDeletedConnections(headers)`** - `GET /v1/database-connection/deleted`
   - Lists soft-deleted connections
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<DatabaseConnection[]>`
 
-- **`testConnection(connectionId, headers?)`** - `POST /v1/database-connection/<id>/test`
+- **`testConnection(connectionId, headers)`** - `POST /v1/database-connection/<id>/test`
   - Tests database connectivity
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ status: 'success' | 'failed'; message: string }>`
 
-- **`analyzeConnection(connectionId, headers?)`** - `POST /v1/database-connection/<id>/analyze`
+- **`analyzeConnection(connectionId, headers)`** - `POST /v1/database-connection/<id>/analyze`
   - Analyzes schema and generates metadata
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<SchemaAnalysis>`
 
-- **`analyzeMultipleConnections(payload?, headers?)`** - `POST /v1/database-connection/analyze`
+- **`analyzeMultipleConnections(payload?, headers)`** - `POST /v1/database-connection/analyze`
   - Batch analyzes multiple connections
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<SchemaAnalysis[]>`
 
-- **`listTables(connectionId, headers?)`** - `GET /v1/database-connection/<id>/table`
+- **`listTables(connectionId, headers)`** - `GET /v1/database-connection/<id>/table`
   - Lists tables in connection
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<DatabaseTable[]>`
 
-- **`getTable(tableId, headers?)`** - `GET /v1/database-connection/table/<table_id>`
+- **`getTable(tableId, headers)`** - `GET /v1/database-connection/table/<table_id>`
   - Gets table details with columns
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<DatabaseTable>`
 
-- **`deleteTable(tableId, headers?)`** - `DELETE /v1/database-connection/table/<table_id>`
+- **`deleteTable(tableId, headers)`** - `DELETE /v1/database-connection/table/<table_id>`
   - Soft deletes table metadata
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`deleteTablesForConnection(connectionId, headers?)`** - `DELETE /v1/database-connection/<id>/table`
+- **`deleteTablesForConnection(connectionId, headers)`** - `DELETE /v1/database-connection/<id>/table`
   - Deletes all tables for connection
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ deleted: number }>`
 
-- **`restoreTable(tableId, headers?)`** - `PATCH /v1/database-connection/table/<table_id>/restore`
+- **`restoreTable(tableId, headers)`** - `PATCH /v1/database-connection/table/<table_id>/restore`
   - Restores deleted table
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<DatabaseTable>`
 
-- **`listDeletedTables(headers?)`** - `GET /v1/database-connection/table/deleted`
+- **`listDeletedTables(headers)`** - `GET /v1/database-connection/table/deleted`
   - Lists soft-deleted tables
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<DatabaseTable[]>`
 
-- **`getSemanticSnapshot(connectionId, headers?)`** - `GET /v1/database-connection/<id>/semantic-snapshot`
+- **`getSemanticSnapshot(connectionId, headers)`** - `GET /v1/database-connection/<id>/semantic-snapshot`
   - Gets semantic understanding of schema
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<SemanticSnapshot>`
 
-- **`getKnowledgeGraph(connectionId, headers?)`** - `GET /v1/database-connection/<id>/knowledge-graph`
+- **`getKnowledgeGraph(connectionId, headers)`** - `GET /v1/database-connection/<id>/knowledge-graph`
   - Returns relationship graph
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<KnowledgeGraph>`
 
-- **`getSampleQueries(connectionId, headers?)`** - `GET /v1/database-connection/<id>/sample-queries`
+- **`getSampleQueries(connectionId, headers)`** - `GET /v1/database-connection/<id>/sample-queries`
   - Generates sample natural language queries
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<SampleQuery[]>`
 
-- **`textToSql(connectionId, question, execute?, resultLimit?, headers?)`** - `POST /v1/database-connection/<id>/text-to-sql`
+- **`textToSql(connectionId, question, execute?, resultLimit?, headers)`** - `POST /v1/database-connection/<id>/text-to-sql`
   - Converts natural language to SQL
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Parameters: `execute` (boolean), `resultLimit` (number)
   - Returns: `Promise<{ sql: string; results?: any[]; explanation: string }>`
 
-- **`exportConnection(connectionId, headers?)`** - `POST /v1/database-connection/export`
-  - Exports connection configuration
+- **`exportConnection(connectionId, headers)`** - `POST /v1/database-connection/export`
+  - Exports connection configuration to documents
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<string>`
+
+---
+
+### DocumentService (`client.documents`)
+
+Document upload and management for agent knowledge bases.
+
+#### Methods
+
+- **`uploadDocuments(agentId, payload, headers)`** - `POST /v1/document/upload`
+  - Upload files or scrape URLs and enqueue processing
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Use `Content-Type: multipart/form-data` for file uploads or `application/json` for URL submission
+  - Payload: `{ agent_id (required), files? (multiple), url?, urls?, metadata? }`
+  - Returns: `Promise<DocumentUploadResult>`
+
+- **`listDocuments(headers)`** - `GET /v1/document`
+  - List documents for the company
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<Document[]>`
+
+- **`deleteDocument(documentId, headers)`** - `DELETE /v1/document/<id>`
+  - Soft delete a document
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<void>`
+
+- **`deleteDocumentChunk(chunkId, headers)`** - `DELETE /v1/document/chunk/<id>`
+  - Soft delete a single document chunk
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<void>`
+
+- **`deleteAllDocumentChunks(documentId, headers)`** - `DELETE /v1/document/<id>/chunk`
+  - Delete all chunks for a document
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<{ deleted: number }>`
+
+- **`restoreDocument(documentId, headers)`** - `PATCH /v1/document/<id>/restore`
+  - Restore a soft-deleted document
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<Document>`
+
+- **`restoreDocumentChunk(chunkId, headers)`** - `PATCH /v1/document/chunk/<id>/restore`
+  - Restore a soft-deleted chunk
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<DocumentChunk>`
+
+- **`listDeletedDocuments(headers)`** - `GET /v1/document/deleted`
+  - List deleted documents
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<Document[]>`
+
+- **`listDeletedDocumentChunks(headers)`** - `GET /v1/document/chunk/deleted`
+  - List deleted document chunks
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<DocumentChunk[]>`
+
+- **`restoreAllDocumentChunks(documentId, headers)`** - `PATCH /v1/document/<id>/chunk/restore-all`
+  - Restore all chunks for a document
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<{ restored: number }>`
+
+- **`bulkDeleteDocuments(documentIds, headers)`** - `DELETE /v1/document/bulk-delete`
+  - Bulk delete documents
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Body: `{ document_ids: [uuid, ...] }`
+  - Returns: `Promise<{ deleted: number }>`
 
 ---
 
@@ -679,63 +842,81 @@ Conversation lifecycle and message handling.
 
 #### ConversationService Methods
 
-- **`createConversation(agentId, title?, metadata?, maxContextLength?, headers?)`** - `POST /v1/conversation`
-  - Creates new conversation
+- **`createConversation(agentId, title?, metadata?, maxContextLength?, headers)`** - `POST /v1/conversation`
+  - Creates new conversation for the authenticated entity
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ conversation: Conversation }>`
 
-- **`listConversations(page?, perPage?, headers?)`** - `GET /v1/conversation`
-  - Lists conversations with pagination
+- **`listConversations(page?, perPage?, headers)`** - `GET /v1/conversation`
+  - Lists company conversations (active)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<PaginatedResponse<Conversation>>`
 
-- **`listConversationsForEntity(page?, perPage?, headers?)`** - `GET /v1/conversation/entity`
-  - Lists conversations for current entity
+- **`listConversationsForEntity(page?, perPage?, headers)`** - `GET /v1/conversation/entity`
+  - Lists conversations for the authenticated entity (user/lead)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<PaginatedResponse<Conversation>>`
 
-- **`listDeletedConversations(headers?)`** - `GET /v1/conversation/deleted`
+- **`listDeletedConversations(headers)`** - `GET /v1/conversation/deleted`
   - Lists soft-deleted conversations
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Conversation[]>`
 
-- **`listConversationMessages(conversationId, page?, perPage?, headers?)`** - `GET /v1/conversation/<id>/messages`
+- **`listConversationMessages(conversationId, page?, perPage?, headers)`** - `GET /v1/conversation/<id>/messages`
   - Lists messages in conversation
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<PaginatedResponse<Message>>`
 
-- **`deleteConversation(conversationId, headers?)`** - `DELETE /v1/conversation/<id>`
+- **`deleteConversation(conversationId, headers)`** - `DELETE /v1/conversation/<id>`
   - Soft deletes conversation
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`deleteConversationMessages(conversationId, headers?)`** - `DELETE /v1/conversation/<id>/messages`
+- **`deleteConversationMessages(conversationId, headers)`** - `DELETE /v1/conversation/<id>/messages`
   - Deletes all messages in conversation
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ deleted: number }>`
 
-- **`restoreConversation(conversationId, headers?)`** - `PATCH /v1/conversation/<id>/restore`
+- **`restoreConversation(conversationId, headers)`** - `PATCH /v1/conversation/<id>/restore`
   - Restores deleted conversation
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Conversation>`
 
-- **`restoreAllMessages(conversationId, headers?)`** - `PATCH /v1/conversation/<id>/message/restore-all`
+- **`restoreAllMessages(conversationId, headers)`** - `PATCH /v1/conversation/<id>/message/restore-all`
   - Restores all deleted messages
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ restored: number }>`
 
 #### MessageService Methods
 
 - **`sendMessage(conversationId, message, options?)`** - `POST /v1/conversation/<id>/chat`
-  - Sends message to agent
+  - Queues a chat message for asynchronous AI processing
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Body: `{ message: string (required) }`
+  - Returns: `202 Accepted` with `Promise<{ status: "queued", task_id, conversation_id, message_id, poll_url }>`
   - Options: `{ headers?, stream?, stream_url?, stream_timeout?, event_types?, raw_events? }`
-  - Returns: `Promise<MessageResponse>` or `MessageStream` if streaming
+  - Note: Returns `MessageStream` if `stream: true` is passed in options
   
 - **`streamConversationMessages(conversationId, options?)`** - `GET /v1/conversation/<id>/messages/stream`
-  - Opens SSE stream for conversation updates
-  - Returns: `MessageStream`
+  - Opens Server-Sent Events (SSE) stream for conversation updates
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `MessageStream` with events: `queued`, `completed`, `failed`, and heartbeat
+  - Returns `503` if streaming is not configured
+  - Options: `{ headers?, event_types?, raw_events? }`
 
-- **`deleteMessage(messageId, headers?)`** - `DELETE /v1/message/<id>`
+- **`deleteMessage(messageId, headers)`** - `DELETE /v1/message/<id>`
   - Soft deletes a message
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`restoreMessage(messageId, headers?)`** - `PATCH /v1/message/<id>/restore`
+- **`restoreMessage(messageId, headers)`** - `PATCH /v1/message/<id>/restore`
   - Restores deleted message
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Message>`
 
-- **`listDeletedMessages(headers?)`** - `GET /v1/message/deleted`
+- **`listDeletedMessages(headers)`** - `GET /v1/message/deleted`
   - Lists all soft-deleted messages
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Message[]>`
 
 ---
@@ -747,63 +928,90 @@ Lead capture and management for the widget.
 #### Methods
 
 - **`registerLead(payload, headers?)`** - `POST /v1/lead/register`
-  - Public widget registration endpoint
-  - Payload: `{ agent_id, first_name, last_name, email, phone?, consent_marketing?, consent_data_processing? }`
+  - Public widget registration endpoint with automatic JWT issuance
+  - Public endpoint (no authentication required)
+  - Payload: `{ agent_id, first_name, last_name, email, phone?, source?, notes?, consent_marketing?, consent_data_processing? }`
+  - Returns: `Promise<Lead>` with JWT token for widget authentication
+
+- **`createLead(payload, headers)`** - `POST /v1/lead`
+  - Admin-created lead via authenticated API
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Lead>`
 
-- **`createLead(payload, headers?)`** - `POST /v1/lead`
-  - Admin-created lead
-  - Returns: `Promise<Lead>`
-
-- **`getLead(leadId, headers?)`** - `GET /v1/lead/<id>`
+- **`getLead(leadId, headers)`** - `GET /v1/lead/<id>`
   - Gets lead details
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Lead>`
 
-- **`listCompanyLeads(page?, perPage?, status?, search?, headers?)`** - `GET /v1/lead/company`
+- **`listCompanyLeads(page?, perPage?, status?, search?, headers)`** - `GET /v1/lead/company`
   - Lists company leads with filtering
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Status: `'new' | 'contacted' | 'qualified' | 'converted' | 'lost'`
   - Returns: `Promise<PaginatedResponse<Lead>>`
 
-- **`updateLead(leadId, payload, headers?)`** - `PUT /v1/lead/<id>`
+- **`updateLead(leadId, payload, headers)`** - `PUT /v1/lead/<id>`
   - Updates lead information
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Lead>`
 
-- **`deleteLead(leadId, headers?)`** - `DELETE /v1/lead/<id>`
+- **`deleteLead(leadId, headers)`** - `DELETE /v1/lead/<id>`
   - Soft deletes lead
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
 ---
 
-### LLMSettingsService (`client.settings`)
+### SettingsService (`client.settings`)
 
 LLM configuration and model settings.
 
 #### Methods
 
-- **`createSettings(payload, headers?)`** - `POST /v1/llm-settings`
-  - Creates LLM configuration
-  - Payload: `{ llm_provider_id, llm_model_id, embedding_provider_id, embedding_model_id, llm_temperature?, llm_max_tokens?, agent_id? }`
+- **`createSettings(payload, headers)`** - `POST /v1/settings`
+  - Creates LLM configuration for a company or agent
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Payload: `{ llm_provider_id, llm_model_id, embedding_provider_id, embedding_model_id, agent_id?, llm_api_key?, llm_api_base_url?, llm_temperature?, llm_max_tokens?, llm_additional_params?, embedding_api_key?, embedding_api_base_url?, embedding_dimension?, embedding_additional_params?, widget_script_url?, widget_config?, is_default? }`
   - Returns: `Promise<LLMSettings>`
 
-- **`getSettings(settingsId, headers?)`** - `GET /v1/llm-settings/<id>`
+- **`getSettings(settingsId, headers)`** - `GET /v1/settings/<id>`
   - Retrieves settings configuration
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<LLMSettings>`
 
-- **`listSettings(headers?)`** - `GET /v1/llm-settings`
-  - Lists all LLM settings
+- **`listSettingsByCompany(companyId, headers)`** - `GET /v1/settings/company/<company_id>`
+  - Lists company-level settings
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<LLMSettings[]>`
 
-- **`updateSettings(settingsId, payload, headers?)`** - `PUT /v1/llm-settings/<id>`
+- **`listSettingsByAgent(agentId, headers)`** - `GET /v1/settings/agent/<agent_id>`
+  - Lists settings tied to an agent
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<LLMSettings[]>`
+
+- **`updateSettings(settingsId, payload, headers)`** - `PUT /v1/settings/<id>`
   - Updates LLM settings
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<LLMSettings>`
 
-- **`deleteSettings(settingsId, headers?)`** - `DELETE /v1/llm-settings/<id>`
+- **`deleteSettings(settingsId, headers)`** - `DELETE /v1/settings/<id>`
   - Deletes settings configuration
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`testSettings(settingsId, headers?)`** - `POST /v1/llm-settings/<id>/test`
+- **`testSettings(settingsId, headers)`** - `POST /v1/settings/test/<id>`
   - Tests LLM configuration
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ status: string; response: string }>`
+
+- **`listProvidersWithSettings(headers)`** - `GET /v1/settings/providers`
+  - Lists providers with settings context
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<Provider[]>`
+
+- **`seedProviders(headers)`** - `POST /v1/settings/providers/seed`
+  - Seeds default providers/models
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<any>`
 
 ---
 
@@ -813,996 +1021,59 @@ LLM and embedding provider management.
 
 #### Methods
 
-- **`listProviders(headers?)`** - `GET /v1/provider`
+- **`listProviders(headers)`** - `GET /v1/providers`
   - Lists all available providers
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Provider[]>`
 
-- **`getProvider(providerId, headers?)`** - `GET /v1/provider/<id>`
+- **`getProvider(providerId, headers)`** - `GET /v1/providers/<id>`
   - Gets provider details with models
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<ProviderWithModels>`
 
-- **`createProvider(payload, headers?)`** - `POST /v1/provider`
+- **`createProvider(payload, headers)`** - `POST /v1/providers`
   - Creates custom provider (admin only)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Payload: `{ name, type, description?, api_base_url?, pricing?, status? }`
   - Returns: `Promise<Provider>`
 
-- **`updateProvider(providerId, payload, headers?)`** - `PUT /v1/provider/<id>`
+- **`updateProvider(providerId, payload, headers)`** - `PUT /v1/providers/<id>`
   - Updates provider configuration
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Provider>`
 
-- **`deleteProvider(providerId, headers?)`** - `DELETE /v1/provider/<id>`
+- **`deleteProvider(providerId, headers)`** - `DELETE /v1/providers/<id>`
   - Deletes provider
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`listModels(providerId?, headers?)`** - `GET /v1/model`
-  - Lists models, optionally filtered by provider
+- **`listModelsByProvider(providerId, headers)`** - `GET /v1/providers/<provider_id>/models`
+  - Lists models for a provider
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Model[]>`
 
-- **`getModel(modelId, headers?)`** - `GET /v1/model/<id>`
+- **`getModel(providerId, modelId, headers)`** - `GET /v1/providers/<provider_id>/models/<model_id>`
   - Gets model details
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Model>`
 
-- **`createModel(providerId, payload, headers?)`** - `POST /v1/provider/<provider_id>/model`
+- **`createModel(providerId, payload, headers)`** - `POST /v1/providers/<provider_id>/models`
   - Creates custom model
-  - Payload: `{ name, type, context_window, input_price, output_price, currency }`
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Payload: `{ name, provider_model_id?, type, context_window?, input_price?, output_price?, currency?, embedding_dimension?, status? }`
   - Returns: `Promise<Model>`
 
-- **`updateModel(modelId, payload, headers?)`** - `PUT /v1/model/<id>`
+- **`updateModel(providerId, modelId, payload, headers)`** - `PUT /v1/providers/<provider_id>/models/<model_id>`
   - Updates model configuration
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Model>`
 
-- **`deleteModel(modelId, headers?)`** - `DELETE /v1/model/<id>`
+- **`deleteModel(providerId, modelId, headers)`** - `DELETE /v1/providers/<provider_id>/models/<model_id>`
   - Deletes model
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
----
-
-## High-Level Wrappers
-
-The SDK provides convenient wrapper classes for common workflows that combine multiple API calls.
-
-### KnowrithmAgent
-
-High-level interface for agent interactions.
-
-```typescript
-import { KnowrithmAgent } from '@knowrithm/sdk';
-
-const agent = new KnowrithmAgent(client, 'agent-id');
-
-// Chat with the agent (creates conversation automatically)
-const response = await agent.chat('What are your business hours?');
-console.log(response);
-
-// Get agent details
-const details = await agent.getDetails();
-
-// Get performance metrics
-const metrics = await agent.getMetrics();
-
-// List conversations
-const conversations = await agent.getConversations(20); // limit: 20
-
-// Clone the agent
-const clonedAgent = await agent.clone('New Agent Name');
-
-// Upload documents
-await agent.uploadDocuments([
-  { file: buffer, filename: 'doc.pdf' }
-]);
-
-// Test agent
-const testResult = await agent.test('Sample query');
-```
-
-### KnowrithmCompany
-
-Company-level operations wrapper.
-
-```typescript
-import { KnowrithmCompany } from '@knowrithm/sdk';
-
-const company = new KnowrithmCompany(client, 'company-id');
-
-// Create an agent
-const agent = await company.createAgent('Support Bot', 'Handles customer queries');
-
-// List all agents
-const agents = await company.listAgents();
-
-// Create a lead
-const lead = await company.createLead({
-  first_name: 'John',
-  last_name: 'Doe',
-  email: 'john@example.com',
-  phone: '+1234567890',
-});
-
-// Get company analytics
-const analytics = await company.getAnalytics();
-
-// Get statistics
-const stats = await company.getStatistics(30); // last 30 days
-```
-
-### KnowrithmConversation
-
-Conversation management wrapper.
-
-```typescript
-import { KnowrithmConversation } from '@knowrithm/sdk';
-
-const conversation = new KnowrithmConversation(client, 'conversation-id');
-
-// Send a message
-const response = await conversation.sendMessage('Hello!');
-
-// Get message history
-const messages = await conversation.getMessages();
-
-// Stream messages in real-time
-const stream = await conversation.streamMessages();
-
-for await (const event of stream) {
-  console.log('Event:', event.event);
-  console.log('Data:', event.data);
-}
-
-// Delete conversation
-await conversation.delete();
-```
-
----
-
-## Streaming Messages
-
-The SDK supports Server-Sent Events (SSE) for real-time message streaming. Configure the stream endpoint in the client or pass it per request.
-
-### Configuration
-
-```typescript
-import { KnowrithmClient, KnowrithmConfig } from '@knowrithm/sdk';
-
-const client = new KnowrithmClient({
-  apiKey: 'your-api-key',
-  apiSecret: 'your-api-secret',
-  config: {
-    streamPathTemplate: '/conversation/{conversation_id}/messages/stream',
-    streamTimeout: 60000, // 60 seconds
-  },
-});
-```
-
-### Using Async Iterators
-
-```typescript
-const conversation = await client.conversations.createConversation('agent-id');
-
-const stream = await client.messages.sendMessage(
-  conversation.conversation.id,
-  'Tell me a story',
-  { stream: true }
-);
-
-console.log('Streaming response...');
-
-for await (const event of stream) {
-  if (event.event === 'message') {
-    process.stdout.write(event.data.content || '');
-  } else if (event.event === 'chat_status') {
-    console.log('Status:', event.data.status);
-  } else if (event.event === 'error') {
-    console.error('Error:', event.data);
-  }
-}
-
-console.log('\nStream completed');
-```
-
-### Using Event Listeners
-
-```typescript
-const stream = await client.messages.sendMessage(
-  conversationId,
-  'Hello',
-  { stream: true }
-);
-
-stream.on('message', (data) => {
-  console.log('Message chunk:', data);
-});
-
-stream.on('chat_status', (data) => {
-  console.log('Status update:', data.status);
-});
-
-stream.on('chat_response', (data) => {
-  console.log('Final response:', data);
-});
-
-stream.on('error', (error) => {
-  console.error('Stream error:', error);
-});
-
-stream.on('end', () => {
-  console.log('Stream ended');
-});
-
-// Clean up when done
-stream.close();
-```
-
-### Direct Stream Access
-
-```typescript
-// Open stream without sending a message
-const stream = await client.messages.streamConversationMessages(
-  conversationId,
-  {
-    event_types: ['message', 'chat_status', 'chat_response'],
-    raw_events: false, // Parse events automatically
-  }
-);
-
-for await (const event of stream) {
-  console.log(event);
-}
-```
-
-### Fallback to Polling
-
-If SSE returns 503 (streaming disabled), fall back to polling:
-
-```typescript
-try {
-  const stream = await client.messages.sendMessage(
-    conversationId,
-    message,
-    { stream: true }
-  );
-  
-  for await (const event of stream) {
-    // Handle events
-  }
-} catch (error) {
-  if (error.statusCode === 503) {
-    // Fall back to polling
-    const queued = await client.messages.sendMessage(conversationId, message);
-    
-    // Poll for completion
-    let messages;
-    do {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      messages = await client.conversations.listConversationMessages(conversationId);
-    } while (messages.messages?.[0]?.status === 'processing');
-    
-    console.log('Response:', messages.messages?.[0]?.content);
-  }
-}
-```
-
----
-
-## File Uploads
-
-Upload documents to agents for knowledge base enhancement.
-
-### Upload from File System (Node.js)
-
-```typescript
-import fs from 'fs';
-import { KnowrithmClient } from '@knowrithm/sdk';
-
-const client = new KnowrithmClient({
-  apiKey: process.env.KNOWRITHM_API_KEY!,
-  apiSecret: process.env.KNOWRITHM_API_SECRET!,
-});
-
-// Single file
-const fileBuffer = fs.readFileSync('document.pdf');
-const result = await client.documents.uploadDocuments('agent-id', {
-  filePaths: [
-    { file: fileBuffer, filename: 'document.pdf' }
-  ],
-  metadata: {
-    tags: ['support', 'faq'],
-    source: 'manual_upload',
-  },
-});
-
-console.log('Upload result:', result);
-
-// Multiple files
-const files = ['doc1.pdf', 'doc2.pdf', 'doc3.pdf'].map(filename => ({
-  file: fs.readFileSync(filename),
-  filename,
-}));
-
-await client.documents.uploadDocuments('agent-id', {
-  filePaths: files,
-  metadata: { category: 'knowledge_base' },
-});
-```
-
-### Upload from URLs
-
-```typescript
-const result = await client.documents.uploadDocuments('agent-id', {
-  urls: [
-    'https://example.com/doc.pdf',
-    'https://example.com/guide.pdf',
-  ],
-  metadata: {
-    source: 'web',
-    imported_at: new Date().toISOString(),
-  },
-});
-```
-
-### Browser File Upload
-
-```typescript
-// In a React/Vue/Angular component
-async function handleFileUpload(files: FileList, agentId: string) {
-  const fileArray = Array.from(files).map(file => ({
-    file,
-    filename: file.name,
-  }));
-
-  try {
-    const result = await client.documents.uploadDocuments(agentId, {
-      filePaths: fileArray,
-      metadata: { uploaded_by: 'user' },
-    });
-    
-    console.log('Upload successful:', result);
-  } catch (error) {
-    console.error('Upload failed:', error);
-  }
-}
-```
-
-### Mixed Upload (Files + URLs)
-
-```typescript
-const fileBuffer = fs.readFileSync('local.pdf');
-
-await client.documents.uploadDocuments('agent-id', {
-  filePaths: [
-    { file: fileBuffer, filename: 'local.pdf' }
-  ],
-  urls: ['https://example.com/remote.pdf'],
-  metadata: {
-    batch_id: 'batch-123',
-  },
-});
-```
-
----
-
-## Error Handling
-
-All service methods throw `KnowrithmAPIError` when the API returns a non-success status or when requests fail after retries.
-
-### Basic Error Handling
-
-```typescript
-import { KnowrithmAPIError } from '@knowrithm/sdk';
-
-try {
-  const agent = await client.agents.getAgent('invalid-id');
-} catch (error) {
-  if (error instanceof KnowrithmAPIError) {
-    console.error('API Error:', {
-      status: error.statusCode,
-      code: error.errorCode,
-      message: error.message,
-      data: error.responseData,
-    });
-  } else {
-    console.error('Unexpected error:', error);
-  }
-}
-```
-
-### Handling Specific Error Codes
-
-```typescript
-try {
-  await client.agents.createAgent({ name: 'Test Agent' });
-} catch (error) {
-  if (error instanceof KnowrithmAPIError) {
-    switch (error.statusCode) {
-      case 400:
-        console.error('Validation error:', error.responseData);
-        break;
-      case 401:
-        console.error('Authentication failed');
-        // Refresh token or re-authenticate
-        break;
-      case 403:
-        console.error('Insufficient permissions');
-        break;
-      case 404:
-        console.error('Resource not found');
-        break;
-      case 429:
-        console.error('Rate limit exceeded');
-        // Implement backoff strategy
-        break;
-      case 500:
-        console.error('Server error');
-        // Retry or alert monitoring
-        break;
-      default:
-        console.error('Unknown error:', error.message);
-    }
-  }
-}
-```
-
-### Retry Logic
-
-The SDK includes automatic retry logic for transient failures. Configure retry behavior:
-
-```typescript
-const client = new KnowrithmClient({
-  apiKey: 'your-api-key',
-  apiSecret: 'your-api-secret',
-  config: {
-    maxRetries: 3,
-    retryBackoffFactor: 1.5, // Exponential backoff
-    timeout: 30000, // 30 seconds
-  },
-});
-```
-
-### Global Error Handler
-
-```typescript
-async function withErrorHandler<T>(
-  operation: () => Promise<T>,
-  context: string
-): Promise<T | null> {
-  try {
-    return await operation();
-  } catch (error) {
-    if (error instanceof KnowrithmAPIError) {
-      console.error(`${context} failed:`, {
-        status: error.statusCode,
-        message: error.message,
-      });
-      
-      // Log to monitoring service
-      // logToMonitoring(context, error);
-    }
-    return null;
-  }
-}
-
-// Usage
-const agent = await withErrorHandler(
-  () => client.agents.getAgent('agent-id'),
-  'Get Agent'
-);
-```
-
----
-
-## TypeScript Types
-
-The SDK is fully typed with comprehensive TypeScript definitions.
-
-### Enums
-
-```typescript
-import {
-  AgentStatus,
-  ConversationStatus,
-  DocumentStatus,
-  UserStatus,
-  UserRole,
-  EntityType,
-  DatabaseType,
-  LeadStatus,
-} from '@knowrithm/sdk';
-
-// Agent statuses
-const status: AgentStatus = AgentStatus.ACTIVE;
-// Values: ACTIVE, INACTIVE, ARCHIVED, DELETED
-
-// User roles
-const role: UserRole = UserRole.ADMIN;
-// Values: SUPER_ADMIN, ADMIN, USER, VIEWER
-
-// Database types
-const dbType: DatabaseType = DatabaseType.POSTGRESQL;
-// Values: POSTGRESQL, MYSQL, MONGODB, SQLITE
-```
-
-### Interfaces
-
-```typescript
-import {
-  Agent,
-  Conversation,
-  Message,
-  User,
-  Company,
-  Lead,
-  Document,
-  DatabaseConnection,
-  LLMSettings,
-} from '@knowrithm/sdk';
-
-// Typed agent
-const agent: Agent = {
-  id: 'agent-123',
-  name: 'Support Bot',
-  description: 'Customer support',
-  status: AgentStatus.ACTIVE,
-  company_id: 'company-456',
-  created_at: '2024-01-01T00:00:00Z',
-  updated_at: '2024-01-01T00:00:00Z',
-};
-
-// Typed conversation
-const conversation: Conversation = {
-  id: 'conv-789',
-  agent_id: 'agent-123',
-  title: 'Support Chat',
-  status: ConversationStatus.ACTIVE,
-  metadata: { source: 'widget' },
-  created_at: '2024-01-01T00:00:00Z',
-};
-```
-
-### Generic Types
-
-```typescript
-import {
-  PaginatedResponse,
-  PaginationParams,
-  DateRangeParams,
-  AuthResponse,
-} from '@knowrithm/sdk';
-
-// Paginated responses
-const agents: PaginatedResponse<Agent> = await client.agents.listAgents({
-  page: 1,
-  per_page: 20,
-  status: AgentStatus.ACTIVE,
-});
-
-console.log(agents.data);        // Agent[]
-console.log(agents.pagination);  // { page, per_page, total, total_pages }
-
-// Pagination parameters
-const params: PaginationParams = {
-  page: 1,
-  per_page: 50,
-};
-
-// Date range parameters
-const dateRange: DateRangeParams = {
-  start_date: '2024-01-01',
-  end_date: '2024-12-31',
-};
-
-// Authentication response
-const auth: AuthResponse = await client.auth.login('user@example.com', 'password');
-console.log(auth.access_token);
-console.log(auth.refresh_token);
-console.log(auth.expires_in);
-```
-
-### Type Guards
-
-```typescript
-import { isKnowrithmAPIError } from '@knowrithm/sdk';
-
-try {
-  await client.agents.getAgent('id');
-} catch (error) {
-  if (isKnowrithmAPIError(error)) {
-    // TypeScript knows this is KnowrithmAPIError
-    console.error(error.statusCode);
-  }
-}
-```
-
----
-
-## Configuration
-
-Customize the SDK client with various configuration options.
-
-### Full Configuration
-
-```typescript
-import { KnowrithmClient, KnowrithmConfig } from '@knowrithm/sdk';
-
-const config: KnowrithmConfig = {
-  baseUrl: 'https://app.knowrithm.org/api',
-  apiVersion: 'v1',
-  timeout: 30000,                    // Request timeout (ms)
-  maxRetries: 3,                     // Retry attempts
-  retryBackoffFactor: 1.5,           // Exponential backoff multiplier
-  verifySsl: true,                   // SSL verification
-  streamPathTemplate: '/conversation/{conversation_id}/messages/stream',
-  streamTimeout: 60000,              // Stream timeout (ms)
-};
-
-const client = new KnowrithmClient({
-  apiKey: 'your-api-key',
-  apiSecret: 'your-api-secret',
-  config,
-});
-```
-
-### Environment-Specific Configuration
-
-```typescript
-// Development
-const devClient = new KnowrithmClient({
-  apiKey: process.env.DEV_API_KEY!,
-  apiSecret: process.env.DEV_API_SECRET!,
-  config: {
-    baseUrl: 'https://dev.knowrithm.org/api',
-    verifySsl: false, // For local development
-  },
-});
-
-// Production
-const prodClient = new KnowrithmClient({
-  apiKey: process.env.PROD_API_KEY!,
-  apiSecret: process.env.PROD_API_SECRET!,
-  config: {
-    baseUrl: 'https://app.knowrithm.org/api',
-    verifySsl: true,
-    maxRetries: 5,
-    timeout: 60000,
-  },
-});
-```
-
----
-
-## Examples
-
-### Complete Agent Workflow
-
-```typescript
-import { KnowrithmClient, KnowrithmAgent } from '@knowrithm/sdk';
-import fs from 'fs';
-
-async function completeWorkflow() {
-  const client = new KnowrithmClient({
-    apiKey: process.env.KNOWRITHM_API_KEY!,
-    apiSecret: process.env.KNOWRITHM_API_SECRET!,
-  });
-
-  // Create company
-  const company = await client.companies.createCompany({
-    name: 'Tech Startup Inc',
-    email: 'contact@techstartup.com',
-    website: 'https://techstartup.com',
-  });
-
-  // Create agent
-  const agentData = await client.agents.createAgent({
-    name: 'Customer Support AI',
-    description: 'Handles technical support queries',
-    company_id: company.id,
-  });
-
-  // Use high-level wrapper
-  const agent = new KnowrithmAgent(client, agentData.agent.id);
-
-  // Upload knowledge base
-  const docBuffer = fs.readFileSync('./kb/faq.pdf');
-  await agent.uploadDocuments([
-    { file: docBuffer, filename: 'faq.pdf' }
-  ]);
-
-  // Also upload from URL
-  await client.documents.uploadDocuments(agentData.agent.id, {
-    urls: ['https://techstartup.com/docs/api.pdf'],
-  });
-
-  // Test the agent
-  const testResponse = await agent.test('How do I reset my password?');
-  console.log('Test response:', testResponse);
-
-  // Start a conversation
-  const response = await agent.chat('What are your support hours?');
-  console.log('Agent:', response);
-
-  // Get metrics
-  const metrics = await agent.getMetrics();
-  console.log('Metrics:', metrics);
-}
-
-completeWorkflow().catch(console.error);
-```
-
-### Streaming with React
-
-```typescript
-import { useState, useEffect } from 'react';
-import { KnowrithmClient } from '@knowrithm/sdk';
-
-function ChatComponent() {
-  const [client] = useState(() => new KnowrithmClient({
-    apiKey: process.env.REACT_APP_API_KEY!,
-    apiSecret: process.env.REACT_APP_API_SECRET!,
-  }));
-  
-  const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function sendMessage(conversationId: string, message: string) {
-    setLoading(true);
-    setResponse('');
-
-    try {
-      const stream = await client.messages.sendMessage(
-        conversationId,
-        message,
-        { stream: true }
-      );
-
-      for await (const event of stream) {
-        if (event.event === 'message' && event.data.content) {
-          setResponse(prev => prev + event.data.content);
-        }
-      }
-    } catch (error) {
-      console.error('Streaming error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div>
-      <div>{response || (loading ? 'Typing...' : 'Send a message')}</div>
-    </div>
-  );
-}
-```
-
-### Database Text-to-SQL
-
-```typescript
-async function textToSqlExample() {
-  const client = new KnowrithmClient({
-    apiKey: process.env.KNOWRITHM_API_KEY!,
-    apiSecret: process.env.KNOWRITHM_API_SECRET!,
-  });
-
-  // Create database connection
-  const connection = await client.databases.createConnection(
-    'Analytics DB',
-    'postgresql://user:pass@localhost:5432/analytics',
-    'postgres',
-    'agent-id'
-  );
-
-  // Test connection
-  const testResult = await client.databases.testConnection(connection.id);
-  console.log('Connection status:', testResult.status);
-
-  // Analyze schema
-  await client.databases.analyzeConnection(connection.id);
-
-  // Get sample queries
-  const samples = await client.databases.getSampleQueries(connection.id);
-  console.log('Sample queries:', samples);
-
-  // Convert natural language to SQL
-  const result = await client.databases.textToSql(
-    connection.id,
-    'Show me the top 10 customers by revenue last month',
-    true,  // execute the query
-    10     // result limit
-  );
-
-  console.log('Generated SQL:', result.sql);
-  console.log('Query results:', result.results);
-  console.log('Explanation:', result.explanation);
-}
-```
-
-### Lead Management
-
-```typescript
-async function leadManagementExample() {
-  const client = new KnowrithmClient({
-    apiKey: process.env.KNOWRITHM_API_KEY!,
-    apiSecret: process.env.KNOWRITHM_API_SECRET!,
-  });
-
-  // Create lead from widget (public endpoint)
-  const lead = await client.leads.registerLead({
-    agent_id: 'agent-id',
-    first_name: 'Jane',
-    last_name: 'Smith',
-    email: 'jane@example.com',
-    phone: '+1234567890',
-    consent_marketing: true,
-    consent_data_processing: true,
-  });
-
-  // List company leads
-  const leads = await client.leads.listCompanyLeads({
-    page: 1,
-    per_page: 50,
-    status: 'new',
-    search: 'jane',
-  });
-
-  // Update lead status
-  await client.leads.updateLead(lead.id, {
-    status: 'contacted',
-    notes: 'Called and left voicemail',
-  });
-
-  // Get lead analytics
-  const analytics = await client.analytics.getLeadAnalytics(
-    '2024-01-01',
-    '2024-12-31'
-  );
-  
-  console.log('Lead conversion rate:', analytics.conversion_rate);
-}
-```
-
----
-
-## Browser and Node.js Usage
-
-The SDK works seamlessly in both environments.
-
-### Node.js
-
-```typescript
-import { KnowrithmClient } from '@knowrithm/sdk';
-import fs from 'fs';
-import path from 'path';
-
-const client = new KnowrithmClient({
-  apiKey: process.env.KNOWRITHM_API_KEY!,
-  apiSecret: process.env.KNOWRITHM_API_SECRET!,
-});
-
-// File operations
-const filePath = path.join(__dirname, 'document.pdf');
-const fileBuffer = fs.readFileSync(filePath);
-
-await client.documents.uploadDocuments('agent-id', {
-  filePaths: [{ file: fileBuffer, filename: 'document.pdf' }],
-});
-```
-
-### Browser (React Example)
-
-```typescript
-import { KnowrithmClient } from '@knowrithm/sdk';
-import { useState, useEffect } from 'react';
-
-function App() {
-  const [client] = useState(() => new KnowrithmClient({
-    apiKey: import.meta.env.VITE_API_KEY,
-    apiSecret: import.meta.env.VITE_API_SECRET,
-  }));
-
-  const [agents, setAgents] = useState([]);
-
-  useEffect(() => {
-    loadAgents();
-  }, []);
-
-  async function loadAgents() {
-    try {
-      const response = await client.agents.listAgents({ page: 1, per_page: 10 });
-      setAgents(response.data);
-    } catch (error) {
-      console.error('Failed to load agents:', error);
-    }
-  }
-
-  return (
-    <div>
-      {agents.map(agent => (
-        <div key={agent.id}>{agent.name}</div>
-      ))}
-    </div>
-  );
-}
-```
-
-### Browser File Upload
-
-```typescript
-function FileUploader({ agentId }: { agentId: string }) {
-  const client = new KnowrithmClient({
-    apiKey: import.meta.env.VITE_API_KEY,
-    apiSecret: import.meta.env.VITE_API_SECRET,
-  });
-
-  async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = event.target.files;
-    if (!files) return;
-
-    const fileArray = Array.from(files).map(file => ({
-      file,
-      filename: file.name,
-    }));
-
-    try {
-      await client.documents.uploadDocuments(agentId, {
-        filePaths: fileArray,
-      });
-      alert('Upload successful!');
-    } catch (error) {
-      console.error('Upload failed:', error);
-    }
-  }
-
-  return <input type="file" multiple onChange={handleUpload} />;
-}
-```
-
----
-
-## API Reference
-
-For complete API documentation, visit [https://docs.knowrithm.org](https://docs.knowrithm.org)
-
----
-
-## Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Please ensure your code:
-- Passes all tests (`npm test`)
-- Follows the coding style (`npm run lint`)
-- Includes appropriate type definitions
-- Updates documentation as needed
-
----
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## Support
-
-Need help? We're here for you:
-
-- **Documentation**: [https://docs.knowrithm.org](https://docs.knowrithm.org)
-- **GitHub Issues**: [https://github.com/Knowrithm/knowrithm-typescript-sdk/issues](https://github.com/Knowrithm/knowrithm-typescript-sdk/issues)
-- **Email**: support@knowrithm.org
-- **Support Portal**: [https://support.knowrithm.org](https://support.knowrithm.org)
-
----
-
-## Changelog
-
-### v1.0.0 (2025-10-12)
-- Initial release
-- Complete API coverage
-- Streaming support
-- High-level wrappers
-- TypeScript type definitions
-- File upload support
-- Error handling and retries
+- **`bulkImportProviders(payload, headers)`** - `POST /v1/providers/bulk-import`
+  - Bulk import providers/models definitions
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<any>`
