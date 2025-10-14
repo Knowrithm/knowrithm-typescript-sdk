@@ -12,7 +12,8 @@ export declare class MessageStream extends EventEmitter {
     private metadata;
     streamUrl: string;
     acceptedEvents?: Set<string>;
-    constructor(metadata: Record<string, any>, reader: ReadableStreamDefaultReader<Uint8Array>, streamUrl: string, acceptedEvents?: Set<string>);
+    private parseJson;
+    constructor(metadata: Record<string, any>, reader: ReadableStreamDefaultReader<Uint8Array>, streamUrl: string, acceptedEvents?: Set<string>, parseJson?: boolean);
     getMetadata(): Record<string, any>;
     get taskId(): string | undefined;
     get messageId(): string | undefined;

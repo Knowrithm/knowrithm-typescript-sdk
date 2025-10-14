@@ -78,6 +78,15 @@ class KnowrithmClient {
         return `${this.config.baseUrl}/${this.config.apiVersion}`;
     }
     /**
+     * Headers required for authenticating requests directly with fetch/SSE.
+     */
+    getAuthHeaders() {
+        return {
+            'X-API-Key': this.apiKey,
+            'X-API-Secret': this.apiSecret,
+        };
+    }
+    /**
      * Make HTTP request with error handling and retries
      */
     async makeRequest(method, endpoint, options) {

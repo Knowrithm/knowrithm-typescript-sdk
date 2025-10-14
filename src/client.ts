@@ -103,6 +103,16 @@ export class KnowrithmClient {
   }
 
   /**
+   * Headers required for authenticating requests directly with fetch/SSE.
+   */
+  public getAuthHeaders(): Record<string, string> {
+    return {
+      'X-API-Key': this.apiKey,
+      'X-API-Secret': this.apiSecret,
+    };
+  }
+
+  /**
    * Make HTTP request with error handling and retries
    */
   async makeRequest<T = any>(

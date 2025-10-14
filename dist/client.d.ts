@@ -62,6 +62,10 @@ export declare class KnowrithmClient {
     });
     get baseUrl(): string;
     /**
+     * Headers required for authenticating requests directly with fetch/SSE.
+     */
+    getAuthHeaders(): Record<string, string>;
+    /**
      * Make HTTP request with error handling and retries
      */
     makeRequest<T = any>(method: string, endpoint: string, options?: {

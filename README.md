@@ -903,6 +903,8 @@ Conversation lifecycle and message handling.
   - Returns: `MessageStream` with events: `queued`, `completed`, `failed`, and heartbeat
   - Returns `503` if streaming is not configured
   - Options: `{ headers?, event_types?, raw_events? }`
+  - Uses the client's API credentials automatically; pass `options.headers` to extend or override per request.
+  - `raw_events: true` disables JSON parsing so your handler receives the raw SSE payload strings (default: parsed JSON objects when possible).
 
 - **`deleteMessage(messageId, headers)`** - `DELETE /v1/message/<id>`
   - Soft deletes a message

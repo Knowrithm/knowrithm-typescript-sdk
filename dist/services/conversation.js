@@ -3,12 +3,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessageService = exports.ConversationService = exports.MessageStream = void 0;
 const events_1 = require("events");
 class MessageStream extends events_1.EventEmitter {
-    constructor(metadata, reader, streamUrl, acceptedEvents) {
+    constructor(metadata, reader, streamUrl, acceptedEvents, parseJson) {
         super();
         this.metadata = metadata;
         this.reader = reader;
         this.streamUrl = streamUrl;
         this.acceptedEvents = acceptedEvents;
+        this.parseJson = parseJson ?? true;
         this.startReading();
     }
     getMetadata() {
@@ -99,8 +100,8 @@ class MessageStream extends events_1.EventEmitter {
         }
         const rawData = dataLines.join('\n');
         let payload = rawData;
-        // Try to parse as JSON
-        if (rawData) {
+        // Try to parse as JSON when enabled
+        if (this.parseJson && rawData) {
             try {
                 payload = JSON.parse(rawData);
             }
@@ -272,7 +273,8 @@ class MessageService {
         if (options?.initialMetadata) {
             Object.assign(metadata, options.initialMetadata);
         }
-        return this.openStream(resolvedUrl, metadata, options?.headers, options?.streamTimeout, allowedEvents);
+        const parseJson = options?.rawEvents ? false : true;
+        return this.openStream(resolvedUrl, metadata, options?.headers, options?.streamTimeout, allowedEvents, parseJson);
     }
     resolveStreamUrl(conversationId, responsePayload, streamUrlOverride) {
         if (streamUrlOverride) {
@@ -313,8 +315,10 @@ class MessageService {
         }
         return `${baseUrl.replace(/\/$/, '')}/${pathOrUrl}`;
     }
-    async openStream(streamUrl, initialPayload, headers, timeoutOverride, allowedEvents) {
+    async openStream(streamUrl, initialPayload, headers, timeoutOverride, allowedEvents, parseJson = true) {
+        const authHeaders = this.client.getAuthHeaders();
         const requestHeaders = {
+            ...authHeaders,
             Accept: 'text/event-stream',
             ...headers,
         };
@@ -343,7 +347,7 @@ class MessageService {
             }
             const reader = response.body.getReader();
             const metadata = { ...initialPayload, stream_url: streamUrl };
-            return new MessageStream(metadata, reader, streamUrl, allowedEvents);
+            return new MessageStream(metadata, reader, streamUrl, allowedEvents, parseJson);
         }
         catch (error) {
             throw new Error(`Failed to open chat stream: ${error instanceof Error ? error.message : String(error)}`);
