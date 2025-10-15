@@ -36,6 +36,15 @@ class AgentService {
         return this.client.makeRequest('GET', `/agent/${agentId}`, { headers });
     }
     /**
+     * Retrieve an agent by name (case-insensitive)
+     *
+     * Endpoint: `GET /v1/agent/by-name/<name>`
+     */
+    async getAgentByName(name, params, headers) {
+        const encodedName = encodeURIComponent(name);
+        return this.client.makeRequest('GET', `/agent/by-name/${encodedName}`, { params, headers });
+    }
+    /**
      * List agents that belong to the current company or to a specific company for super admins
      *
      * Endpoint: `GET /v1/agent`

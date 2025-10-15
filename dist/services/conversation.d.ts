@@ -23,6 +23,18 @@ export declare class MessageStream extends EventEmitter {
     close(): void;
     [Symbol.asyncIterator](): AsyncIterableIterator<ChatEvent>;
 }
+export type ConversationStatusFilter = 'active' | 'archived' | 'deleted' | 'all';
+export interface ListEntityConversationsParams {
+    entity_type?: 'user' | 'lead';
+    status?: ConversationStatusFilter;
+    page?: number;
+    per_page?: number;
+}
+export interface ListAgentConversationsParams {
+    status?: ConversationStatusFilter;
+    page?: number;
+    per_page?: number;
+}
 export declare class ConversationService {
     private client;
     constructor(client: KnowrithmClient);
@@ -33,6 +45,8 @@ export declare class ConversationService {
     }, headers?: Record<string, string>): Promise<any>;
     listConversations(page?: number, perPage?: number, headers?: Record<string, string>): Promise<any>;
     listConversationsForEntity(page?: number, perPage?: number, headers?: Record<string, string>): Promise<any>;
+    getConversationsByEntity(entityId: string, params?: ListEntityConversationsParams, headers?: Record<string, string>): Promise<any>;
+    getConversationsByAgent(agentId: string, params?: ListAgentConversationsParams, headers?: Record<string, string>): Promise<any>;
     listDeletedConversations(headers?: Record<string, string>): Promise<any>;
     listConversationMessages(conversationId: string, page?: number, perPage?: number, headers?: Record<string, string>): Promise<any>;
     deleteConversation(conversationId: string, headers?: Record<string, string>): Promise<any>;

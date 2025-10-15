@@ -207,6 +207,18 @@ class ConversationService {
             headers,
         });
     }
+    async getConversationsByEntity(entityId, params, headers) {
+        return this.client.makeRequest('GET', `/conversation/entity/${entityId}`, {
+            params,
+            headers,
+        });
+    }
+    async getConversationsByAgent(agentId, params, headers) {
+        return this.client.makeRequest('GET', `/conversation/agent/${agentId}`, {
+            params,
+            headers,
+        });
+    }
     async listDeletedConversations(headers) {
         return this.client.makeRequest('GET', '/conversation/deleted', { headers });
     }

@@ -35,12 +35,18 @@ export type {
   UpdateAgentPayload,
   ListAgentsParams,
   CloneAgentPayload,
+  GetAgentByNameParams,
 } from './services/agent';
 export type {
   CreateSettingsPayload,
   CreateSdkSettingsPayload,
   UpdateSettingsPayload,
 } from './services/settings';
+export type {
+  ConversationStatusFilter,
+  ListEntityConversationsParams,
+  ListAgentConversationsParams,
+} from './services/conversation';
 
 // Types and enums
 export * from './types/enums';

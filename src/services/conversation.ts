@@ -221,6 +221,21 @@ export class MessageStream extends EventEmitter {
   }
 }
 
+export type ConversationStatusFilter = 'active' | 'archived' | 'deleted' | 'all';
+
+export interface ListEntityConversationsParams {
+  entity_type?: 'user' | 'lead';
+  status?: ConversationStatusFilter;
+  page?: number;
+  per_page?: number;
+}
+
+export interface ListAgentConversationsParams {
+  status?: ConversationStatusFilter;
+  page?: number;
+  per_page?: number;
+}
+
 export class ConversationService {
   constructor(private client: KnowrithmClient) {}
 
@@ -255,6 +270,28 @@ export class ConversationService {
   ): Promise<any> {
     return this.client.makeRequest('GET', '/conversation/entity', {
       params: { page, per_page: perPage },
+      headers,
+    });
+  }
+
+  async getConversationsByEntity(
+    entityId: string,
+    params?: ListEntityConversationsParams,
+    headers?: Record<string, string>
+  ): Promise<any> {
+    return this.client.makeRequest('GET', `/conversation/entity/${entityId}`, {
+      params,
+      headers,
+    });
+  }
+
+  async getConversationsByAgent(
+    agentId: string,
+    params?: ListAgentConversationsParams,
+    headers?: Record<string, string>
+  ): Promise<any> {
+    return this.client.makeRequest('GET', `/conversation/agent/${agentId}`, {
+      params,
       headers,
     });
   }

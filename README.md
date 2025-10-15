@@ -486,6 +486,12 @@ AI agent creation and management.
   - Public endpoint
   - Returns: `Promise<Agent>`
 
+- **`getAgentByName(name, params?, headers)`** - `GET /v1/agent/by-name/<name>`
+  - Retrieves agent by name (case-insensitive)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Params: `{ company_id? }` (super-admin can scope to a company)
+  - Returns: `Promise<Agent>`
+
 - **`listAgents(params?, headers)`** - `GET /v1/agent`
   - Lists agents with filtering
   - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
@@ -882,6 +888,18 @@ Conversation lifecycle and message handling.
 - **`listConversationsForEntity(page?, perPage?, headers)`** - `GET /v1/conversation/entity`
   - Lists conversations for the authenticated entity (user/lead)
   - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<PaginatedResponse<Conversation>>`
+
+- **`getConversationsByEntity(entityId, params?, headers)`** - `GET /v1/conversation/entity/<entity_id>`
+  - Lists conversations for a specific entity (user or lead)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Params: `{ entity_type?, status?, page?, per_page? }`
+  - Returns: `Promise<PaginatedResponse<Conversation>>`
+
+- **`getConversationsByAgent(agentId, params?, headers)`** - `GET /v1/conversation/agent/<agent_id>`
+  - Lists conversations handled by a specific agent
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Params: `{ status?, page?, per_page? }`
   - Returns: `Promise<PaginatedResponse<Conversation>>`
 
 - **`listDeletedConversations(headers)`** - `GET /v1/conversation/deleted`

@@ -88,6 +88,10 @@ export interface CloneAgentPayload {
   llm_settings_id?: string;
 }
 
+export interface GetAgentByNameParams {
+  company_id?: string;
+}
+
 /**
  * Thin wrapper around agent endpoints. Provides a typed interface 
  * for creating and managing Knowrithm agents.
@@ -128,6 +132,20 @@ export class AgentService {
    */
   async getAgent(agentId: string, headers?: Record<string, string>): Promise<any> {
     return this.client.makeRequest('GET', `/agent/${agentId}`, { headers });
+  }
+
+  /**
+   * Retrieve an agent by name (case-insensitive)
+   * 
+   * Endpoint: `GET /v1/agent/by-name/<name>`
+   */
+  async getAgentByName(
+    name: string,
+    params?: GetAgentByNameParams,
+    headers?: Record<string, string>
+  ): Promise<any> {
+    const encodedName = encodeURIComponent(name);
+    return this.client.makeRequest('GET', `/agent/by-name/${encodedName}`, { params, headers });
   }
 
   /**
