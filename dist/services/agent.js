@@ -12,6 +12,7 @@ class AgentService {
     /**
      * Create a new agent bound to the authenticated company
      *
+     * Automatically provisions LLM + embedding settings when provider/model IDs are supplied.
      * Endpoint: `POST /v1/agent`
      */
     async createAgent(payload, headers) {

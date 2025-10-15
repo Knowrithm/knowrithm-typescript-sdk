@@ -3,6 +3,33 @@ import { KnowrithmClient } from '../client';
 
 export interface CreateAgentPayload {
   name: string;
+  llm_provider_id: string;
+  llm_model_id: string;
+  embedding_provider_id: string;
+  embedding_model_id: string;
+  company_id?: string;
+  description?: string;
+  avatar_url?: string;
+  llm_api_key?: string;
+  llm_api_base_url?: string;
+  llm_temperature?: number;
+  llm_max_tokens?: number;
+  llm_additional_params?: Record<string, any>;
+  embedding_api_key?: string;
+  embedding_api_base_url?: string;
+  embedding_dimension?: number;
+  embedding_additional_params?: Record<string, any>;
+  widget_script_url?: string;
+  widget_config?: Record<string, any>;
+  personality_traits?: Record<string, any>;
+  capabilities?: string[];
+  operating_hours?: Record<string, any>;
+  languages?: string[];
+  status?: string;
+}
+
+export interface UpdateAgentPayload {
+  name?: string;
   description?: string;
   avatar_url?: string;
   llm_settings_id?: string;
@@ -12,8 +39,6 @@ export interface CreateAgentPayload {
   languages?: string[];
   status?: string;
 }
-
-export interface UpdateAgentPayload extends Partial<CreateAgentPayload> {}
 
 export interface ListAgentsParams {
   company_id?: string;
@@ -38,6 +63,7 @@ export class AgentService {
   /**
    * Create a new agent bound to the authenticated company
    * 
+   * Automatically provisions LLM + embedding settings when provider/model IDs are supplied.
    * Endpoint: `POST /v1/agent`
    */
   async createAgent(

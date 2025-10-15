@@ -78,9 +78,15 @@ const agent = await client.agents.createAgent({
   name: 'Support Bot',
   description: 'Customer support assistant',
   status: 'active',
+  // Provide provider/model IDs to auto-provision agent-level settings
+  llm_provider_id: '6fa1fc5e-a7de-4c98-b203-20e063db89fe',
+  llm_model_id: '8f3c2d09-0d0f-4fcf-83da-79d58a0d30d5',
+  embedding_provider_id: '75d4ceaf-6a3c-4bd3-98f0-0bcf2bb9c2d4',
+  embedding_model_id: 'bc03b08f-8f44-4a1e-9227-f0022f8b5d4e',
 });
 
 console.log('Agent ID:', agent.agent.id);
+console.log('Settings ID:', agent.settings.id);
 
 // Upload supporting documents
 await client.documents.uploadDocuments(agent.agent.id, {
@@ -449,10 +455,10 @@ AI agent creation and management.
 #### Methods
 
 - **`createAgent(payload, headers)`** - `POST /v1/agent`
-  - Creates new AI agent
+  - Creates new AI agent and provisions dedicated LLM + embedding settings
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`)
-  - Payload: `{ name, description?, avatar_url?, llm_settings_id?, personality_traits?, capabilities?, operating_hours?, languages?, status? }`
-  - Returns: `Promise<{ agent: Agent }>`
+  - Payload: `{ name, llm_provider_id, llm_model_id, embedding_provider_id, embedding_model_id, company_id?, description?, avatar_url?, llm_api_key?, llm_api_base_url?, llm_temperature?, llm_max_tokens?, llm_additional_params?, embedding_api_key?, embedding_api_base_url?, embedding_dimension?, embedding_additional_params?, widget_script_url?, widget_config?, personality_traits?, capabilities?, operating_hours?, languages?, status? }`
+  - Returns: `Promise<{ agent: Agent; settings: LLMSettings }>`
 
 - **`getAgent(agentId, headers?)`** - `GET /v1/agent/<id>`
   - Retrieves agent details

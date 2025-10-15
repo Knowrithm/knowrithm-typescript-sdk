@@ -4,6 +4,7 @@
  * High-level interface for company operations
  */
 import { KnowrithmClient } from '../client';
+import { CreateAgentPayload } from '../services/agent';
 import { KnowrithmAgent } from './agent';
 
 export class KnowrithmCompany {
@@ -17,20 +18,14 @@ export class KnowrithmCompany {
   /**
    * Create a new agent for this company
    */
-  async createAgent(
-    name: string,
-    description?: string,
-    additionalData?: Record<string, any>
-  ): Promise<KnowrithmAgent> {
-    const agentData = {
-      name,
-      company_id: this.companyId,
-      description,
-      ...additionalData,
+  async createAgent(agentData: CreateAgentPayload): Promise<KnowrithmAgent> {
+    const payload: CreateAgentPayload = {
+      ...agentData,
+      company_id: agentData.company_id ?? this.companyId,
     };
 
-    const agent = await this.client.agents.createAgent(agentData);
-    return new KnowrithmAgent(this.client, agent.id);
+    const response = await this.client.agents.createAgent(payload);
+    return new KnowrithmAgent(this.client, response.agent.id);
   }
 
   /**

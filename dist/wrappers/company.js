@@ -11,15 +11,13 @@ class KnowrithmCompany {
     /**
      * Create a new agent for this company
      */
-    async createAgent(name, description, additionalData) {
-        const agentData = {
-            name,
-            company_id: this.companyId,
-            description,
-            ...additionalData,
+    async createAgent(agentData) {
+        const payload = {
+            ...agentData,
+            company_id: agentData.company_id ?? this.companyId,
         };
-        const agent = await this.client.agents.createAgent(agentData);
-        return new agent_1.KnowrithmAgent(this.client, agent.id);
+        const response = await this.client.agents.createAgent(payload);
+        return new agent_1.KnowrithmAgent(this.client, response.agent.id);
     }
     /**
      * List all agents for this company
