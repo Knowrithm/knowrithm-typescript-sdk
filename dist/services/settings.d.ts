@@ -1,45 +1,77 @@
 import { KnowrithmClient } from '../client';
+export interface CreateSettingsPayload {
+    llm_provider_id: string;
+    llm_model_id: string;
+    embedding_provider_id: string;
+    embedding_model_id: string;
+    agent_id?: string;
+    llm_api_key?: string;
+    llm_api_base_url?: string;
+    llm_temperature?: number;
+    llm_max_tokens?: number;
+    llm_additional_params?: Record<string, any>;
+    embedding_api_key?: string;
+    embedding_api_base_url?: string;
+    embedding_dimension?: number;
+    embedding_additional_params?: Record<string, any>;
+    widget_script_url?: string;
+    widget_config?: Record<string, any>;
+    is_default?: boolean;
+}
+export interface CreateSdkSettingsPayload {
+    agent_id?: string;
+    llm_provider: string;
+    llm_provider_id?: string;
+    llm_model: string;
+    llm_model_id?: string;
+    llm_api_key?: string;
+    llm_api_base_url?: string;
+    llm_temperature?: number;
+    llm_max_tokens?: number;
+    llm_additional_params?: Record<string, any>;
+    embedding_provider: string;
+    embedding_provider_id?: string;
+    embedding_model: string;
+    embedding_model_id?: string;
+    embedding_api_key?: string;
+    embedding_api_base_url?: string;
+    embedding_dimension?: number;
+    embedding_additional_params?: Record<string, any>;
+    widget_script_url?: string;
+    widget_config?: Record<string, any>;
+    is_default?: boolean;
+}
+export interface UpdateSettingsPayload {
+    llm_provider_id?: string;
+    llm_model_id?: string;
+    embedding_provider_id?: string;
+    embedding_model_id?: string;
+    agent_id?: string;
+    llm_api_key?: string;
+    llm_api_base_url?: string;
+    llm_temperature?: number;
+    llm_max_tokens?: number;
+    llm_additional_params?: Record<string, any>;
+    embedding_api_key?: string;
+    embedding_api_base_url?: string;
+    embedding_dimension?: number;
+    embedding_additional_params?: Record<string, any>;
+    widget_script_url?: string;
+    widget_config?: Record<string, any>;
+    is_default?: boolean;
+    is_active?: boolean;
+}
 export declare class SettingsService {
     private client;
     constructor(client: KnowrithmClient);
-    createSettings(payload: {
-        llm_provider_id: string;
-        llm_model_id: string;
-        embedding_provider_id: string;
-        embedding_model_id: string;
-        agent_id?: string;
-        llm_api_key?: string;
-        llm_api_base_url?: string;
-        llm_temperature?: number;
-        llm_max_tokens?: number;
-        llm_additional_params?: Record<string, any>;
-        embedding_api_key?: string;
-        embedding_api_base_url?: string;
-        embedding_dimension?: number;
-        embedding_additional_params?: Record<string, any>;
-        widget_script_url?: string;
-        widget_config?: Record<string, any>;
-        is_default?: boolean;
-    }, headers?: Record<string, string>): Promise<any>;
-    updateSettings(settingsId: string, payload: Partial<{
-        llm_provider_id: string;
-        llm_model_id: string;
-        embedding_provider_id: string;
-        embedding_model_id: string;
-        agent_id: string;
-        llm_api_key: string;
-        llm_api_base_url: string;
-        llm_temperature: number;
-        llm_max_tokens: number;
-        llm_additional_params: Record<string, any>;
-        embedding_api_key: string;
-        embedding_api_base_url: string;
-        embedding_dimension: number;
-        embedding_additional_params: Record<string, any>;
-        widget_script_url: string;
-        widget_config: Record<string, any>;
-        is_default: boolean;
-    }>, headers?: Record<string, string>): Promise<any>;
+    createSettings(payload: CreateSettingsPayload, headers?: Record<string, string>): Promise<any>;
+    /**
+     * Create LLM settings by referencing provider/model names instead of IDs
+     *
+     * Endpoint: `POST /v1/sdk/settings`
+     */
+    createSdkSettings(payload: CreateSdkSettingsPayload, headers?: Record<string, string>): Promise<any>;
+    updateSettings(settingsId: string, payload: UpdateSettingsPayload, headers?: Record<string, string>): Promise<any>;
     getSettings(settingsId: string, headers?: Record<string, string>): Promise<any>;
     listCompanySettings(companyId: string, headers?: Record<string, string>): Promise<any>;
     listAgentSettings(agentId: string, headers?: Record<string, string>): Promise<any>;

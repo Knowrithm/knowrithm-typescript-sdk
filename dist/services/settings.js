@@ -8,6 +8,14 @@ class SettingsService {
     async createSettings(payload, headers) {
         return this.client.makeRequest('POST', '/settings', { data: payload, headers });
     }
+    /**
+     * Create LLM settings by referencing provider/model names instead of IDs
+     *
+     * Endpoint: `POST /v1/sdk/settings`
+     */
+    async createSdkSettings(payload, headers) {
+        return this.client.makeRequest('POST', '/sdk/settings', { data: payload, headers });
+    }
     async updateSettings(settingsId, payload, headers) {
         return this.client.makeRequest('PUT', `/settings/${settingsId}`, { data: payload, headers });
     }

@@ -4,7 +4,7 @@
  * High-level interface for company operations
  */
 import { KnowrithmClient } from '../client';
-import { CreateAgentPayload } from '../services/agent';
+import { CreateAgentPayload, CreateSdkAgentPayload, SdkAgentSettingsPayload } from '../services/agent';
 import { KnowrithmAgent } from './agent';
 
 export class KnowrithmCompany {
@@ -18,13 +18,34 @@ export class KnowrithmCompany {
   /**
    * Create a new agent for this company
    */
-  async createAgent(agentData: CreateAgentPayload): Promise<KnowrithmAgent> {
+  async createAgent(
+    agentData: CreateAgentPayload,
+    headers?: Record<string, string>
+  ): Promise<KnowrithmAgent> {
     const payload: CreateAgentPayload = {
       ...agentData,
       company_id: agentData.company_id ?? this.companyId,
     };
 
-    const response = await this.client.agents.createAgent(payload);
+    const response = await this.client.agents.createAgent(payload, headers);
+    return new KnowrithmAgent(this.client, response.agent.id);
+  }
+
+  /**
+   * Create a new agent using provider/model names with automatic settings provisioning
+   */
+  async createAgentWithSettings(
+    agentData: Omit<CreateSdkAgentPayload, 'settings'>,
+    settings: SdkAgentSettingsPayload,
+    headers?: Record<string, string>
+  ): Promise<KnowrithmAgent> {
+    const payload: CreateSdkAgentPayload = {
+      ...agentData,
+      company_id: agentData.company_id ?? this.companyId,
+      settings,
+    };
+
+    const response = await this.client.agents.createSdkAgent(payload, headers);
     return new KnowrithmAgent(this.client, response.agent.id);
   }
 

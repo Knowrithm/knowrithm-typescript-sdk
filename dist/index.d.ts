@@ -15,6 +15,8 @@ export { LeadService } from './services/lead';
 export { KnowrithmAgent } from './wrappers/agent';
 export { KnowrithmCompany } from './wrappers/company';
 export { KnowrithmConversation } from './wrappers/conversation';
+export type { CreateAgentPayload, CreateSdkAgentPayload, SdkAgentSettingsPayload, UpdateAgentPayload, ListAgentsParams, CloneAgentPayload, } from './services/agent';
+export type { CreateSettingsPayload, CreateSdkSettingsPayload, UpdateSettingsPayload, } from './services/settings';
 export * from './types/enums';
 export * from './types/auth';
 export * from './types/common';

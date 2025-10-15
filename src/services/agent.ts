@@ -28,6 +28,41 @@ export interface CreateAgentPayload {
   status?: string;
 }
 
+export interface SdkAgentSettingsPayload {
+  llm_provider: string;
+  llm_provider_id?: string;
+  llm_model: string;
+  llm_model_id?: string;
+  llm_api_key?: string;
+  llm_api_base_url?: string;
+  llm_temperature?: number;
+  llm_max_tokens?: number;
+  llm_additional_params?: Record<string, any>;
+  embedding_provider: string;
+  embedding_provider_id?: string;
+  embedding_model: string;
+  embedding_model_id?: string;
+  embedding_api_key?: string;
+  embedding_api_base_url?: string;
+  embedding_dimension?: number;
+  embedding_additional_params?: Record<string, any>;
+  widget_script_url?: string;
+  widget_config?: Record<string, any>;
+}
+
+export interface CreateSdkAgentPayload {
+  name: string;
+  company_id?: string;
+  description?: string;
+  avatar_url?: string;
+  personality_traits?: Record<string, any>;
+  capabilities?: string[];
+  operating_hours?: Record<string, any>;
+  languages?: string[];
+  status?: string;
+  settings: SdkAgentSettingsPayload;
+}
+
 export interface UpdateAgentPayload {
   name?: string;
   description?: string;
@@ -71,6 +106,19 @@ export class AgentService {
     headers?: Record<string, string>
   ): Promise<any> {
     return this.client.makeRequest('POST', '/agent', { data: payload, headers });
+  }
+
+  /**
+   * Create an agent by referencing provider/model names instead of IDs
+   * 
+   * Useful for SDK integrations that manage provider catalogs client-side.
+   * Endpoint: `POST /v1/sdk/agent`
+   */
+  async createSdkAgent(
+    payload: CreateSdkAgentPayload,
+    headers?: Record<string, string>
+  ): Promise<any> {
+    return this.client.makeRequest('POST', '/sdk/agent', { data: payload, headers });
   }
 
   /**

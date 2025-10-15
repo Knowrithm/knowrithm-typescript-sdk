@@ -88,6 +88,21 @@ const agent = await client.agents.createAgent({
 console.log('Agent ID:', agent.agent.id);
 console.log('Settings ID:', agent.settings.id);
 
+// Or create the agent using provider/model names (no IDs required)
+const agentByNames = await client.agents.createSdkAgent({
+  name: 'Support Bot (SDK)',
+  status: 'active',
+  settings: {
+    llm_provider: 'openai',
+    llm_model: 'gpt-3.5-turbo-16k',
+    embedding_provider: 'openai',
+    embedding_model: 'text-embedding-ada-002',
+  },
+});
+
+console.log('Agent (lookup) ID:', agentByNames.agent.id);
+console.log('Settings (lookup) ID:', agentByNames.settings.id);
+
 // Upload supporting documents
 await client.documents.uploadDocuments(agent.agent.id, {
   filePaths: [{ file: documentBuffer, filename: 'knowledge-base.pdf' }],
@@ -459,6 +474,12 @@ AI agent creation and management.
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`)
   - Payload: `{ name, llm_provider_id, llm_model_id, embedding_provider_id, embedding_model_id, company_id?, description?, avatar_url?, llm_api_key?, llm_api_base_url?, llm_temperature?, llm_max_tokens?, llm_additional_params?, embedding_api_key?, embedding_api_base_url?, embedding_dimension?, embedding_additional_params?, widget_script_url?, widget_config?, personality_traits?, capabilities?, operating_hours?, languages?, status? }`
   - Returns: `Promise<{ agent: Agent; settings: LLMSettings }>`
+
+- **`createSdkAgent(payload, headers)`** - `POST /v1/sdk/agent`
+  - Creates new AI agent using provider/model names with automatic settings provisioning
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`)
+  - Payload: `{ name, company_id?, description?, avatar_url?, personality_traits?, capabilities?, operating_hours?, languages?, status?, settings: { llm_provider, llm_provider_id?, llm_model, llm_model_id?, llm_api_key?, llm_api_base_url?, llm_temperature?, llm_max_tokens?, llm_additional_params?, embedding_provider, embedding_provider_id?, embedding_model, embedding_model_id?, embedding_api_key?, embedding_api_base_url?, embedding_dimension?, embedding_additional_params?, widget_script_url?, widget_config? } }`
+  - Returns: `Promise<{ message: string; agent: Agent; settings: LLMSettings }>`
 
 - **`getAgent(agentId, headers?)`** - `GET /v1/agent/<id>`
   - Retrieves agent details
@@ -979,6 +1000,12 @@ LLM configuration and model settings.
   - Creates LLM configuration for a company or agent
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Payload: `{ llm_provider_id, llm_model_id, embedding_provider_id, embedding_model_id, agent_id?, llm_api_key?, llm_api_base_url?, llm_temperature?, llm_max_tokens?, llm_additional_params?, embedding_api_key?, embedding_api_base_url?, embedding_dimension?, embedding_additional_params?, widget_script_url?, widget_config?, is_default? }`
+  - Returns: `Promise<LLMSettings>`
+
+- **`createSdkSettings(payload, headers)`** - `POST /v1/sdk/settings`
+  - Creates LLM configuration using provider/model names (no IDs required)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Payload: `{ agent_id?, llm_provider, llm_provider_id?, llm_model, llm_model_id?, llm_api_key?, llm_api_base_url?, llm_temperature?, llm_max_tokens?, llm_additional_params?, embedding_provider, embedding_provider_id?, embedding_model, embedding_model_id?, embedding_api_key?, embedding_api_base_url?, embedding_dimension?, embedding_additional_params?, widget_script_url?, widget_config?, is_default? }`
   - Returns: `Promise<LLMSettings>`
 
 - **`getSettings(settingsId, headers)`** - `GET /v1/settings/<id>`

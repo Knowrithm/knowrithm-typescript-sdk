@@ -27,6 +27,21 @@ export { KnowrithmAgent } from './wrappers/agent';
 export { KnowrithmCompany } from './wrappers/company';
 export { KnowrithmConversation } from './wrappers/conversation';
 
+// Service payload types
+export type {
+  CreateAgentPayload,
+  CreateSdkAgentPayload,
+  SdkAgentSettingsPayload,
+  UpdateAgentPayload,
+  ListAgentsParams,
+  CloneAgentPayload,
+} from './services/agent';
+export type {
+  CreateSettingsPayload,
+  CreateSdkSettingsPayload,
+  UpdateSettingsPayload,
+} from './services/settings';
+
 // Types and enums
 export * from './types/enums';
 export * from './types/auth';

@@ -2,7 +2,7 @@
  * High-level interface for company operations
  */
 import { KnowrithmClient } from '../client';
-import { CreateAgentPayload } from '../services/agent';
+import { CreateAgentPayload, CreateSdkAgentPayload, SdkAgentSettingsPayload } from '../services/agent';
 import { KnowrithmAgent } from './agent';
 export declare class KnowrithmCompany {
     private client;
@@ -12,7 +12,11 @@ export declare class KnowrithmCompany {
     /**
      * Create a new agent for this company
      */
-    createAgent(agentData: CreateAgentPayload): Promise<KnowrithmAgent>;
+    createAgent(agentData: CreateAgentPayload, headers?: Record<string, string>): Promise<KnowrithmAgent>;
+    /**
+     * Create a new agent using provider/model names with automatic settings provisioning
+     */
+    createAgentWithSettings(agentData: Omit<CreateSdkAgentPayload, 'settings'>, settings: SdkAgentSettingsPayload, headers?: Record<string, string>): Promise<KnowrithmAgent>;
     /**
      * List all agents for this company
      */

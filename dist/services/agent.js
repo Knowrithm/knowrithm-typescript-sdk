@@ -19,6 +19,15 @@ class AgentService {
         return this.client.makeRequest('POST', '/agent', { data: payload, headers });
     }
     /**
+     * Create an agent by referencing provider/model names instead of IDs
+     *
+     * Useful for SDK integrations that manage provider catalogs client-side.
+     * Endpoint: `POST /v1/sdk/agent`
+     */
+    async createSdkAgent(payload, headers) {
+        return this.client.makeRequest('POST', '/sdk/agent', { data: payload, headers });
+    }
+    /**
      * Retrieve agent details by identifier (public endpoint)
      *
      * Endpoint: `GET /v1/agent/<agent_id>`

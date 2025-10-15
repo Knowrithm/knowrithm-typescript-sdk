@@ -11,12 +11,24 @@ class KnowrithmCompany {
     /**
      * Create a new agent for this company
      */
-    async createAgent(agentData) {
+    async createAgent(agentData, headers) {
         const payload = {
             ...agentData,
             company_id: agentData.company_id ?? this.companyId,
         };
-        const response = await this.client.agents.createAgent(payload);
+        const response = await this.client.agents.createAgent(payload, headers);
+        return new agent_1.KnowrithmAgent(this.client, response.agent.id);
+    }
+    /**
+     * Create a new agent using provider/model names with automatic settings provisioning
+     */
+    async createAgentWithSettings(agentData, settings, headers) {
+        const payload = {
+            ...agentData,
+            company_id: agentData.company_id ?? this.companyId,
+            settings,
+        };
+        const response = await this.client.agents.createSdkAgent(payload, headers);
         return new agent_1.KnowrithmAgent(this.client, response.agent.id);
     }
     /**
