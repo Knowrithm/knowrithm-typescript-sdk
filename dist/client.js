@@ -19,6 +19,7 @@ const database_1 = require("./services/database");
 const document_1 = require("./services/document");
 const lead_1 = require("./services/lead");
 const settings_1 = require("./services/settings");
+const website_1 = require("./services/website");
 /**
  * Main client for interacting with the Knowrithm API using API Key authentication
  *
@@ -73,6 +74,7 @@ class KnowrithmClient {
         this.admin = new admin_1.AdminService(this);
         this.settings = new settings_1.SettingsService(this);
         this.providers = new settings_1.ProviderService(this);
+        this.websites = new website_1.WebsiteService(this);
     }
     get baseUrl() {
         return `${this.config.baseUrl}/${this.config.apiVersion}`;

@@ -13,6 +13,7 @@ import { DatabaseService } from './services/database';
 import { DocumentService } from './services/document';
 import { LeadService } from './services/lead';
 import { SettingsService, ProviderService } from './services/settings';
+import { WebsiteService } from './services/website';
 
 /**
  * Main client for interacting with the Knowrithm API using API Key authentication
@@ -61,6 +62,7 @@ export class KnowrithmClient {
   public admin: AdminService;
   public settings: SettingsService;
   public providers: ProviderService;
+  public websites: WebsiteService;
 
   constructor(options: {
     apiKey: string;
@@ -96,6 +98,7 @@ export class KnowrithmClient {
     this.admin = new AdminService(this);
     this.settings = new SettingsService(this);
     this.providers = new ProviderService(this);
+    this.websites = new WebsiteService(this);
   }
 
   get baseUrl(): string {

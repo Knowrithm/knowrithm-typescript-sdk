@@ -21,6 +21,7 @@ export { AddressService } from './services/address';
 export { AdminService } from './services/admin';
 export { SettingsService, ProviderService } from './services/settings';
 export { LeadService } from './services/lead';
+export { WebsiteService } from './services/website';
 
 // High-level wrappers
 export { KnowrithmAgent } from './wrappers/agent';
@@ -47,6 +48,20 @@ export type {
   ListEntityConversationsParams,
   ListAgentConversationsParams,
 } from './services/conversation';
+export type {
+  WebsiteSource,
+  WebsitePage,
+  WebsiteCrawlStatus,
+  WebsitePageStatus,
+  RegisterWebsiteSourcePayload,
+  ListWebsiteSourcesParams,
+  ListWebsiteSourcesResponse,
+  ListWebsitePagesResponse,
+  TriggerWebsiteCrawlPayload,
+  TriggerWebsiteCrawlResponse,
+  WebsiteHandshakePayload,
+  WebsiteHandshakeResponse,
+} from './services/website';
 
 // Types and enums
 export * from './types/enums';

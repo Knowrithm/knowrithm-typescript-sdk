@@ -14,7 +14,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.KnowrithmConversation = exports.KnowrithmCompany = exports.KnowrithmAgent = exports.LeadService = exports.ProviderService = exports.SettingsService = exports.AdminService = exports.AddressService = exports.AnalyticsService = exports.DatabaseService = exports.DocumentService = exports.MessageStream = exports.MessageService = exports.ConversationService = exports.CompanyService = exports.AgentService = exports.UserService = exports.ApiKeyService = exports.AuthService = exports.KnowrithmAPIError = exports.KnowrithmConfig = exports.KnowrithmClient = void 0;
+exports.KnowrithmConversation = exports.KnowrithmCompany = exports.KnowrithmAgent = exports.WebsiteService = exports.LeadService = exports.ProviderService = exports.SettingsService = exports.AdminService = exports.AddressService = exports.AnalyticsService = exports.DatabaseService = exports.DocumentService = exports.MessageStream = exports.MessageService = exports.ConversationService = exports.CompanyService = exports.AgentService = exports.UserService = exports.ApiKeyService = exports.AuthService = exports.KnowrithmAPIError = exports.KnowrithmConfig = exports.KnowrithmClient = void 0;
 // src/index.ts
 // Main client
 var client_1 = require("./client");
@@ -53,6 +53,8 @@ Object.defineProperty(exports, "SettingsService", { enumerable: true, get: funct
 Object.defineProperty(exports, "ProviderService", { enumerable: true, get: function () { return settings_1.ProviderService; } });
 var lead_1 = require("./services/lead");
 Object.defineProperty(exports, "LeadService", { enumerable: true, get: function () { return lead_1.LeadService; } });
+var website_1 = require("./services/website");
+Object.defineProperty(exports, "WebsiteService", { enumerable: true, get: function () { return website_1.WebsiteService; } });
 // High-level wrappers
 var agent_2 = require("./wrappers/agent");
 Object.defineProperty(exports, "KnowrithmAgent", { enumerable: true, get: function () { return agent_2.KnowrithmAgent; } });

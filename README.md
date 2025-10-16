@@ -28,6 +28,7 @@ The Knowrithm TypeScript SDK provides a comprehensive, type-safe interface for i
   - [LeadService](#leadservice)
   - [SettingsService](#settingsservice)
   - [ProviderService](#providerservice)
+  - [WebsiteService](#websiteservice)
 - [High-Level Wrappers](#high-level-wrappers)
 - [Streaming Messages](#streaming-messages)
 - [File Uploads](#file-uploads)
@@ -1130,3 +1131,41 @@ LLM and embedding provider management.
   - Bulk import providers/models definitions
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<any>`
+---
+
+### WebsiteService (`client.websites`)
+
+Website crawling and page awareness for agent knowledge bases.
+
+#### Methods
+
+- **`registerWebsiteSource(payload, headers)`** - `POST /v1/website/source`
+  - Registers a domain for crawling and links it to an agent
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Payload: `{ agent_id, base_url, seed_urls?, allowed_paths?, disallowed_paths?, crawl_frequency_minutes?, max_pages?, max_depth?, notes? }`
+  - Returns: `Promise<{ website_source: WebsiteSource }>`
+
+- **`listWebsiteSources(params, headers)`** - `GET /v1/website/source`
+  - Lists website sources for the authenticated company (optionally filtered by `agent_id`)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<{ website_sources: WebsiteSource[] }>`
+
+- **`listWebsitePages(sourceId, headers)`** - `GET /v1/website/source/<source_id>/pages`
+  - Retrieves a website source together with its crawled pages
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
+  - Returns: `Promise<{ website_source: WebsiteSource; pages: WebsitePage[] }>`
+
+- **`triggerWebsiteCrawl(sourceId, payload, headers)`** - `POST /v1/website/source/<source_id>/crawl`
+  - Queues a fresh crawl for the website source (optionally overriding `max_pages`)
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Payload: `{ max_pages? }`
+  - Returns: `Promise<{ status: string; task_id?: string; website_source_id: string }>`
+
+- **`handshake(payload, headers)`** - `POST /v1/website/handshake`
+  - Declares the active page from an embedded widget and can optionally trigger a crawl
+  - Requires: none (public endpoint)
+  - Payload: `{ agent_id, url, title?, trigger_crawl? }`
+  - Returns: `Promise<{ website_source?: WebsiteSource; website_page?: WebsitePage; crawl_task_id?: string | null }>`
+
+
+

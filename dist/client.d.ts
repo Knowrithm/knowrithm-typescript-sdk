@@ -10,6 +10,7 @@ import { DatabaseService } from './services/database';
 import { DocumentService } from './services/document';
 import { LeadService } from './services/lead';
 import { SettingsService, ProviderService } from './services/settings';
+import { WebsiteService } from './services/website';
 /**
  * Main client for interacting with the Knowrithm API using API Key authentication
  *
@@ -55,6 +56,7 @@ export declare class KnowrithmClient {
     admin: AdminService;
     settings: SettingsService;
     providers: ProviderService;
+    websites: WebsiteService;
     constructor(options: {
         apiKey: string;
         apiSecret: string;
