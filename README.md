@@ -1,3 +1,7 @@
+
+<img width="831" height="294" alt="20250925_2353_Futuristic Knowrithm Logo_simple_compose_01k616ywakf1r91ekdeb54xy9p" src="https://github.com/user-attachments/assets/9b621a87-60d8-4d0f-80f2-f581bad19ce5" />
+
+
 # Knowrithm TypeScript SDK
 
 [![npm version](https://badge.fury.io/js/%40knowrithm%2Fsdk.svg)](https://badge.fury.io/js/%40knowrithm%2Fsdk)
