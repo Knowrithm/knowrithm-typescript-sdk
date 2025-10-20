@@ -40,14 +40,30 @@ export class DocumentService {
 
     for (const filePath of filePaths) {
       try {
-        const fileBuffer = await fs.readFile(filePath);
-        descriptors.push({
-          data: fileBuffer,
-          filename: path.basename(filePath),
-        });
+        if (typeof filePath === 'string') {
+          const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(filePath);
+          const fileBuffer = await fs.readFile(resolvedPath);
+          descriptors.push({
+            data: fileBuffer,
+            filename: path.basename(resolvedPath),
+          });
+        } else if (filePath && typeof filePath === 'object' && 'file' in filePath) {
+          // Backwards compatibility for legacy SDK shape
+          descriptors.push({
+            data: filePath.file,
+            filename: filePath.filename,
+            fieldName: filePath.fieldName ?? 'files',
+          });
+        } else {
+          throw new Error('Unsupported file descriptor in filePaths array.');
+        }
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to read document at path "${filePath}": ${reason}`);
+        const inputDescription =
+          typeof filePath === 'string'
+            ? filePath
+            : filePath?.filename ?? '[inline file]';
+        throw new Error(`Failed to read document at path "${inputDescription}": ${reason}`);
       }
     }
 

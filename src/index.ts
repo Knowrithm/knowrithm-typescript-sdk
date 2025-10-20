@@ -72,4 +72,5 @@ export type {
   UploadDocumentsResponse,
   UploadedDocument,
   UploadDocumentsFileDescriptor,
+  UploadDocumentsLegacyFileDescriptor,
 } from './types/document';

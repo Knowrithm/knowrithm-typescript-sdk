@@ -34,11 +34,16 @@ export interface UploadDocumentsFileDescriptor {
      */
     fieldName?: string;
 }
+export interface UploadDocumentsLegacyFileDescriptor {
+    file: File | Blob | Buffer | ArrayBuffer | ArrayBufferView | NodeJS.ReadableStream;
+    filename?: string;
+    fieldName?: string;
+}
 export interface UploadDocumentsOptions {
     /**
      * Local filesystem paths that should be read and uploaded.
      */
-    filePaths?: string[];
+    filePaths?: Array<string | UploadDocumentsLegacyFileDescriptor>;
     /**
      * Pre-loaded file descriptors for advanced usage (e.g., buffers in memory).
      */

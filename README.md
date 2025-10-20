@@ -190,6 +190,8 @@ const result = await client.documents.uploadDocuments(agentId, {
 });
 
 console.log(result.documents_processed, result.total_submitted);
+
+> Absolute Windows paths such as `D:\DevOps\crm\docs\terms.pdf` are supported; the SDK automatically resolves relative paths against `process.cwd()`.
 ```
 
 ### Remote URLs and Mixed Sources
