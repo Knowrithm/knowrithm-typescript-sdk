@@ -15,6 +15,61 @@ import { LeadService } from './services/lead';
 import { SettingsService, ProviderService } from './services/settings';
 import { WebsiteService } from './services/website';
 
+const hasBlobSupport = typeof Blob !== 'undefined';
+const hasFileSupport = typeof File !== 'undefined';
+
+const cloneArrayBufferView = (view: ArrayBufferView): ArrayBuffer => {
+  const copy = new Uint8Array(view.byteLength);
+  copy.set(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+  return copy.buffer;
+};
+
+const cloneSharedArrayBuffer = (buffer: SharedArrayBuffer): ArrayBuffer => {
+  const copy = new Uint8Array(buffer.byteLength);
+  copy.set(new Uint8Array(buffer));
+  return copy.buffer;
+};
+
+const normalizeFormDataValue = (value: any): any => {
+  if (value == null) {
+    return value;
+  }
+
+  if (value && typeof value === 'object' && typeof (value as NodeJS.ReadableStream).pipe === 'function') {
+    return value;
+  }
+
+  if (hasFileSupport && value instanceof File) {
+    return value;
+  }
+
+  if (hasBlobSupport && value instanceof Blob) {
+    return value;
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    if (!hasBlobSupport) {
+      return value;
+    }
+
+    const view = value as ArrayBufferView;
+    return new Blob([cloneArrayBufferView(view)]);
+  }
+
+  if (value instanceof ArrayBuffer) {
+    return hasBlobSupport ? new Blob([value]) : value;
+  }
+
+  if (typeof SharedArrayBuffer !== 'undefined' && value instanceof SharedArrayBuffer) {
+    if (!hasBlobSupport) {
+      return new Uint8Array(value);
+    }
+    return new Blob([cloneSharedArrayBuffer(value)]);
+  }
+
+  return value;
+};
+
 /**
  * Main client for interacting with the Knowrithm API using API Key authentication
  * 
@@ -162,10 +217,11 @@ export class KnowrithmClient {
       
       // Add files
       options.files.forEach(({ name, file, filename }) => {
+        const normalizedFile = normalizeFormDataValue(file);
         if (filename) {
-          formData.append(name, file as any, filename);
+          formData.append(name, normalizedFile as any, filename);
         } else {
-          formData.append(name, file as any);
+          formData.append(name, normalizedFile as any);
         }
       });
 

@@ -218,6 +218,8 @@ await client.documents.uploadDocuments(agentId, {
     { data: pdf, filename: 'training-pack.pdf' },
   ],
 });
+
+// Node.js Buffers and typed arrays are automatically converted to Blob instances before upload.
 ```
 
 ### Response Shape & Troubleshooting

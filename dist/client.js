@@ -20,6 +20,49 @@ const document_1 = require("./services/document");
 const lead_1 = require("./services/lead");
 const settings_1 = require("./services/settings");
 const website_1 = require("./services/website");
+const hasBlobSupport = typeof Blob !== 'undefined';
+const hasFileSupport = typeof File !== 'undefined';
+const cloneArrayBufferView = (view) => {
+    const copy = new Uint8Array(view.byteLength);
+    copy.set(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+    return copy.buffer;
+};
+const cloneSharedArrayBuffer = (buffer) => {
+    const copy = new Uint8Array(buffer.byteLength);
+    copy.set(new Uint8Array(buffer));
+    return copy.buffer;
+};
+const normalizeFormDataValue = (value) => {
+    if (value == null) {
+        return value;
+    }
+    if (value && typeof value === 'object' && typeof value.pipe === 'function') {
+        return value;
+    }
+    if (hasFileSupport && value instanceof File) {
+        return value;
+    }
+    if (hasBlobSupport && value instanceof Blob) {
+        return value;
+    }
+    if (ArrayBuffer.isView(value)) {
+        if (!hasBlobSupport) {
+            return value;
+        }
+        const view = value;
+        return new Blob([cloneArrayBufferView(view)]);
+    }
+    if (value instanceof ArrayBuffer) {
+        return hasBlobSupport ? new Blob([value]) : value;
+    }
+    if (typeof SharedArrayBuffer !== 'undefined' && value instanceof SharedArrayBuffer) {
+        if (!hasBlobSupport) {
+            return new Uint8Array(value);
+        }
+        return new Blob([cloneSharedArrayBuffer(value)]);
+    }
+    return value;
+};
 /**
  * Main client for interacting with the Knowrithm API using API Key authentication
  *
@@ -116,11 +159,12 @@ class KnowrithmClient {
             const formData = new FormData();
             // Add files
             options.files.forEach(({ name, file, filename }) => {
+                const normalizedFile = normalizeFormDataValue(file);
                 if (filename) {
-                    formData.append(name, file, filename);
+                    formData.append(name, normalizedFile, filename);
                 }
                 else {
-                    formData.append(name, file);
+                    formData.append(name, normalizedFile);
                 }
             });
             // Add other data fields
