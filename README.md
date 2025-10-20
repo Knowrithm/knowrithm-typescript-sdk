@@ -17,6 +17,7 @@ The Knowrithm TypeScript SDK provides a comprehensive, type-safe interface for i
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Authentication](#authentication)
+- [File Uploads](#file-uploads)
 - [Service Reference](#service-reference)
   - [AuthService](#authservice)
   - [ApiKeyService](#apikeyservice)
@@ -35,7 +36,6 @@ The Knowrithm TypeScript SDK provides a comprehensive, type-safe interface for i
   - [WebsiteService](#websiteservice)
 - [High-Level Wrappers](#high-level-wrappers)
 - [Streaming Messages](#streaming-messages)
-- [File Uploads](#file-uploads)
 - [Error Handling](#error-handling)
 - [TypeScript Types](#typescript-types)
 - [Configuration](#configuration)
@@ -110,7 +110,7 @@ console.log('Settings (lookup) ID:', agentByNames.settings.id);
 
 // Upload supporting documents
 await client.documents.uploadDocuments(agent.agent.id, {
-  filePaths: [{ file: documentBuffer, filename: 'knowledge-base.pdf' }],
+  filePaths: ['./docs/knowledge-base.pdf'],
 });
 
 // Start a conversation and send a message
@@ -153,22 +153,77 @@ const client = new KnowrithmClient({
 
 ### JWT Authentication
 
-Use JWT tokens for user-specific operations. You can either set tokens globally or pass them per request.
+Use JWT tokens for user-specific operations. You can either initialize the client with a bearer token or pass the header per request.
 
 ```typescript
-// Login to obtain JWT tokens
-const authResponse = await client.auth.login('user@example.com', 'password');
+const jwtClient = new KnowrithmClient({
+  bearerToken: 'your-jwt-access-token',
+});
+
+// Or obtain tokens using API key credentials and reuse them
+const authClient = new KnowrithmClient({
+  apiKey: 'your-api-key',
+  apiSecret: 'your-api-secret',
+});
+const authResponse = await authClient.auth.login('user@example.com', 'password');
 const accessToken = authResponse.access_token;
 
-// Option 1: Pass JWT in headers for individual requests
-const headers = { Authorization: `Bearer ${accessToken}` };
-const user = await client.auth.getCurrentUser(headers);
+const headers = { Authorization: `Bearer ${accessToken}` }; // Per-request override
+const user = await authClient.auth.getCurrentUser(headers);
 
-// Option 2: Refresh token when expired
-const refreshed = await client.auth.refreshAccessToken(authResponse.refresh_token);
+const refreshed = await authClient.auth.refreshAccessToken(authResponse.refresh_token);
 ```
 
 > **Note**: Unless a route explicitly states otherwise, supply either `X-API-Key` + `X-API-Secret` with proper scopes or `Authorization: Bearer <JWT>`. All service methods accept an optional `headers` parameter for custom authentication.
+
+---
+
+## File Uploads
+
+Use `client.documents.uploadDocuments` to stream files and URLs into an agent's knowledge base. The SDK automatically applies your configured authentication headers (API key + secret or bearer token) and manages multipart boundaries, so you do not need to set `Content-Type` manually.
+
+### Local Files
+
+```typescript
+const result = await client.documents.uploadDocuments(agentId, {
+  filePaths: ['./docs/intro.pdf', './docs/faq.docx'],
+});
+
+console.log(result.documents_processed, result.total_submitted);
+```
+
+### Remote URLs and Mixed Sources
+
+```typescript
+const result = await client.documents.uploadDocuments(agentId, {
+  filePaths: ['./docs/local.pdf'],
+  urls: ['https://example.com/remote-handbook.pdf'],
+  metadata: { source: 'sdk-demo' },
+});
+```
+
+### Advanced File Descriptors
+
+Provide in-memory buffers, streams, or browser `File` objects with an explicit filename via the `files` option.
+
+```typescript
+import fs from 'node:fs/promises';
+
+const pdf = await fs.readFile('./docs/training-pack.pdf');
+
+await client.documents.uploadDocuments(agentId, {
+  files: [
+    { data: pdf, filename: 'training-pack.pdf' },
+  ],
+});
+```
+
+### Response Shape & Troubleshooting
+
+- Returns an `UploadDocumentsResponse` containing counts (`documents_processed`, `documents_failed`, `total_submitted`), any queued `task_ids`, and per-document metadata.
+- A `207 Multi-Status` indicates partial success—check the `errors` array and `error_summary` map for details.
+- A `401 Missing Authorization Header` response means the client was instantiated without credentials; provide `apiKey` + `apiSecret` or a `bearerToken`.
+- Uploads are rate limited (`20/min`). Retry with exponential backoff or batch requests accordingly.
 
 ---
 
@@ -814,12 +869,12 @@ Document upload and management for agent knowledge bases.
 
 #### Methods
 
-- **`uploadDocuments(agentId, payload, headers)`** - `POST /v1/document/upload`
+- **`uploadDocuments(agentId, options?, headers?)`** - `POST /v1/document/upload`
   - Upload files or scrape URLs and enqueue processing
-  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
-  - Use `Content-Type: multipart/form-data` for file uploads or `application/json` for URL submission
-  - Payload: `{ agent_id (required), files? (multiple), url?, urls?, metadata? }`
-  - Returns: `Promise<DocumentUploadResult>`
+  - Automatically attaches `X-API-Key`/`X-API-Secret` or `Authorization: Bearer` headers based on client configuration
+  - The SDK manages multipart boundaries—do not set the `Content-Type` header manually
+  - Options: `{ filePaths?: string[]; files?: UploadDocumentsFileDescriptor[]; url?: string; urls?: string[]; metadata?: Record<string, unknown> }`
+  - Returns: `Promise<UploadDocumentsResponse>`
 
 - **`listDocuments(headers)`** - `GET /v1/document`
   - List documents for the company

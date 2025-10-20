@@ -1,40 +1,72 @@
 // src/services/document.ts
+import path from 'path';
+import { promises as fs } from 'fs';
 import { KnowrithmClient } from '../client';
+import {
+  UploadDocumentsOptions,
+  UploadDocumentsResponse,
+  UploadDocumentsFileDescriptor,
+} from '../types/document';
 
 export class DocumentService {
   constructor(private client: KnowrithmClient) {}
 
   async uploadDocuments(
     agentId: string,
-    options?: {
-      filePaths?: Array<{ file: File | Buffer; filename: string }>;
-      urls?: string[];
-      url?: string;
-      metadata?: Record<string, any>;
-    },
+    options: UploadDocumentsOptions = {},
     headers?: Record<string, string>
-  ): Promise<any> {
-    const { filePaths, urls, url, metadata } = options || {};
+  ): Promise<UploadDocumentsResponse> {
+    const { filePaths = [], files = [], urls, url, metadata } = options;
 
-    if (filePaths && filePaths.length > 0) {
-      const data: any = { agent_id: agentId, ...metadata };
-      if (urls) data.urls = urls;
-      if (url) data.url = url;
+    const payload: Record<string, unknown> = { agent_id: agentId };
 
-      const files = filePaths.map(({ file, filename }) => ({
-        name: 'files',
-        file,
-        filename,
-      }));
-
-      return this.client.makeRequest('POST', '/document/upload', { data, files, headers });
-    } else {
-      const data: any = { agent_id: agentId, ...metadata };
-      if (urls) data.urls = urls;
-      if (url) data.url = url;
-
-      return this.client.makeRequest('POST', '/document/upload', { data, headers });
+    if (metadata) {
+      Object.entries(metadata).forEach(([key, value]) => {
+        if (value !== undefined) {
+          payload[key] = value;
+        }
+      });
     }
+
+    if (urls && urls.length > 0) {
+      payload.urls = urls;
+    }
+
+    if (url) {
+      payload.url = url;
+    }
+
+    const descriptors: UploadDocumentsFileDescriptor[] = [...files];
+
+    for (const filePath of filePaths) {
+      try {
+        const fileBuffer = await fs.readFile(filePath);
+        descriptors.push({
+          data: fileBuffer,
+          filename: path.basename(filePath),
+        });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to read document at path "${filePath}": ${reason}`);
+      }
+    }
+
+    const normalizedFiles =
+      descriptors.length > 0
+        ? descriptors.map(({ data, filename, fieldName }) => ({
+            name: fieldName ?? 'files',
+            file: data,
+            filename:
+              filename ??
+              (typeof File !== 'undefined' && data instanceof File ? data.name : undefined),
+          }))
+        : undefined;
+
+    return this.client.makeRequest<UploadDocumentsResponse>('POST', '/document/upload', {
+      data: payload,
+      files: normalizedFiles,
+      headers,
+    });
   }
 
   async listDocuments(params?: {

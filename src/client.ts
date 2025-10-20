@@ -41,8 +41,9 @@ import { WebsiteService } from './services/website';
  * ```
  */
 export class KnowrithmClient {
-  private apiKey: string;
-  private apiSecret: string;
+  private apiKey?: string;
+  private apiSecret?: string;
+  private bearerToken?: string;
   public config: KnowrithmConfig;
   private axiosInstance: AxiosInstance;
 
@@ -65,21 +66,29 @@ export class KnowrithmClient {
   public websites: WebsiteService;
 
   constructor(options: {
-    apiKey: string;
-    apiSecret: string;
+    apiKey?: string;
+    apiSecret?: string;
+    bearerToken?: string;
     config?: Partial<KnowrithmConfig>;
   }) {
-    this.apiKey = options.apiKey;
-    this.apiSecret = options.apiSecret;
-    this.config = new KnowrithmConfig(options.config);
+    const { apiKey, apiSecret, bearerToken, config } = options;
+
+    if ((!apiKey || !apiSecret) && !bearerToken) {
+      throw new Error('KnowrithmClient requires either apiKey/apiSecret or bearerToken credentials.');
+    }
+
+    if ((apiKey && !apiSecret) || (!apiKey && apiSecret)) {
+      throw new Error('KnowrithmClient requires both apiKey and apiSecret when using API key authentication.');
+    }
+
+    this.apiKey = apiKey;
+    this.apiSecret = apiSecret;
+    this.bearerToken = bearerToken;
+    this.config = new KnowrithmConfig(config);
 
     // Create axios instance
     this.axiosInstance = axios.create({
       timeout: this.config.timeout,
-      headers: {
-        'X-API-Key': this.apiKey,
-        'X-API-Secret': this.apiSecret,
-      },
     });
 
     // Initialize service modules
@@ -109,10 +118,20 @@ export class KnowrithmClient {
    * Headers required for authenticating requests directly with fetch/SSE.
    */
   public getAuthHeaders(): Record<string, string> {
-    return {
-      'X-API-Key': this.apiKey,
-      'X-API-Secret': this.apiSecret,
-    };
+    if (this.apiKey && this.apiSecret) {
+      return {
+        'X-API-Key': this.apiKey,
+        'X-API-Secret': this.apiSecret,
+      };
+    }
+
+    if (this.bearerToken) {
+      return {
+        Authorization: `Bearer ${this.bearerToken}`,
+      };
+    }
+
+    return {};
   }
 
   /**
@@ -125,11 +144,12 @@ export class KnowrithmClient {
       data?: any;
       params?: Record<string, any>;
       headers?: Record<string, string>;
-      files?: Array<{ name: string; file: File | Buffer; filename: string }>;
+      files?: Array<{ name: string; file: File | Blob | Buffer | ArrayBuffer | ArrayBufferView | NodeJS.ReadableStream; filename?: string }>;
     }
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
     const requestHeaders: Record<string, string> = {
+      ...this.getAuthHeaders(),
       ...options?.headers,
     };
 
@@ -142,7 +162,11 @@ export class KnowrithmClient {
       
       // Add files
       options.files.forEach(({ name, file, filename }) => {
-        formData.append(name, file as any, filename);
+        if (filename) {
+          formData.append(name, file as any, filename);
+        } else {
+          formData.append(name, file as any);
+        }
       });
 
       // Add other data fields
@@ -156,6 +180,10 @@ export class KnowrithmClient {
 
       requestData = formData;
       isFormData = true;
+
+      if (requestHeaders['Content-Type']) {
+        delete requestHeaders['Content-Type'];
+      }
     } else if (options?.data && !requestHeaders['Content-Type']) {
       requestHeaders['Content-Type'] = 'application/json';
     }

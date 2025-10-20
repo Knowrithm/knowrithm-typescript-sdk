@@ -67,3 +67,9 @@ export type {
 export * from './types/enums';
 export * from './types/auth';
 export * from './types/common';
+export type {
+  UploadDocumentsOptions,
+  UploadDocumentsResponse,
+  UploadedDocument,
+  UploadDocumentsFileDescriptor,
+} from './types/document';

@@ -47,16 +47,20 @@ const website_1 = require("./services/website");
  */
 class KnowrithmClient {
     constructor(options) {
-        this.apiKey = options.apiKey;
-        this.apiSecret = options.apiSecret;
-        this.config = new config_1.KnowrithmConfig(options.config);
+        const { apiKey, apiSecret, bearerToken, config } = options;
+        if ((!apiKey || !apiSecret) && !bearerToken) {
+            throw new Error('KnowrithmClient requires either apiKey/apiSecret or bearerToken credentials.');
+        }
+        if ((apiKey && !apiSecret) || (!apiKey && apiSecret)) {
+            throw new Error('KnowrithmClient requires both apiKey and apiSecret when using API key authentication.');
+        }
+        this.apiKey = apiKey;
+        this.apiSecret = apiSecret;
+        this.bearerToken = bearerToken;
+        this.config = new config_1.KnowrithmConfig(config);
         // Create axios instance
         this.axiosInstance = axios_1.default.create({
             timeout: this.config.timeout,
-            headers: {
-                'X-API-Key': this.apiKey,
-                'X-API-Secret': this.apiSecret,
-            },
         });
         // Initialize service modules
         this.auth = new auth_1.AuthService(this);
@@ -83,10 +87,18 @@ class KnowrithmClient {
      * Headers required for authenticating requests directly with fetch/SSE.
      */
     getAuthHeaders() {
-        return {
-            'X-API-Key': this.apiKey,
-            'X-API-Secret': this.apiSecret,
-        };
+        if (this.apiKey && this.apiSecret) {
+            return {
+                'X-API-Key': this.apiKey,
+                'X-API-Secret': this.apiSecret,
+            };
+        }
+        if (this.bearerToken) {
+            return {
+                Authorization: `Bearer ${this.bearerToken}`,
+            };
+        }
+        return {};
     }
     /**
      * Make HTTP request with error handling and retries
@@ -94,6 +106,7 @@ class KnowrithmClient {
     async makeRequest(method, endpoint, options) {
         const url = `${this.baseUrl}${endpoint}`;
         const requestHeaders = {
+            ...this.getAuthHeaders(),
             ...options?.headers,
         };
         let requestData = options?.data;
@@ -103,7 +116,12 @@ class KnowrithmClient {
             const formData = new FormData();
             // Add files
             options.files.forEach(({ name, file, filename }) => {
-                formData.append(name, file, filename);
+                if (filename) {
+                    formData.append(name, file, filename);
+                }
+                else {
+                    formData.append(name, file);
+                }
             });
             // Add other data fields
             if (options.data) {
@@ -115,6 +133,9 @@ class KnowrithmClient {
             }
             requestData = formData;
             isFormData = true;
+            if (requestHeaders['Content-Type']) {
+                delete requestHeaders['Content-Type'];
+            }
         }
         else if (options?.data && !requestHeaders['Content-Type']) {
             requestHeaders['Content-Type'] = 'application/json';

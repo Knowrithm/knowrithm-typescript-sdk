@@ -37,8 +37,9 @@ import { WebsiteService } from './services/website';
  * ```
  */
 export declare class KnowrithmClient {
-    private apiKey;
-    private apiSecret;
+    private apiKey?;
+    private apiSecret?;
+    private bearerToken?;
     config: KnowrithmConfig;
     private axiosInstance;
     auth: AuthService;
@@ -58,8 +59,9 @@ export declare class KnowrithmClient {
     providers: ProviderService;
     websites: WebsiteService;
     constructor(options: {
-        apiKey: string;
-        apiSecret: string;
+        apiKey?: string;
+        apiSecret?: string;
+        bearerToken?: string;
         config?: Partial<KnowrithmConfig>;
     });
     get baseUrl(): string;
@@ -76,8 +78,8 @@ export declare class KnowrithmClient {
         headers?: Record<string, string>;
         files?: Array<{
             name: string;
-            file: File | Buffer;
-            filename: string;
+            file: File | Blob | Buffer | ArrayBuffer | ArrayBufferView | NodeJS.ReadableStream;
+            filename?: string;
         }>;
     }): Promise<T>;
 }

@@ -1,16 +1,9 @@
 import { KnowrithmClient } from '../client';
+import { UploadDocumentsOptions, UploadDocumentsResponse } from '../types/document';
 export declare class DocumentService {
     private client;
     constructor(client: KnowrithmClient);
-    uploadDocuments(agentId: string, options?: {
-        filePaths?: Array<{
-            file: File | Buffer;
-            filename: string;
-        }>;
-        urls?: string[];
-        url?: string;
-        metadata?: Record<string, any>;
-    }, headers?: Record<string, string>): Promise<any>;
+    uploadDocuments(agentId: string, options?: UploadDocumentsOptions, headers?: Record<string, string>): Promise<UploadDocumentsResponse>;
     listDocuments(params?: {
         page?: number;
         per_page?: number;
