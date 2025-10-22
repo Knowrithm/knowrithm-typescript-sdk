@@ -1,5 +1,5 @@
 // src/client.ts
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { KnowrithmConfig } from './config';
 import { KnowrithmAPIError } from './errors';
 import { AddressService } from './services/address';
@@ -70,6 +70,52 @@ const normalizeFormDataValue = (value: any): any => {
   return value;
 };
 
+interface RequestRetryOptions {
+  maxRetries?: number;
+  retryDelay?: number;
+  backoffMultiplier?: number;
+  retryableStatusCodes?: number[];
+}
+
+interface MakeRequestFileDescriptor {
+  name: string;
+  file: File | Blob | Buffer | ArrayBuffer | ArrayBufferView | NodeJS.ReadableStream | SharedArrayBuffer;
+  filename?: string;
+}
+
+interface MakeRequestOptions extends RequestRetryOptions {
+  data?: any;
+  params?: Record<string, any>;
+  headers?: Record<string, string>;
+  files?: MakeRequestFileDescriptor[];
+  timeout?: number;
+  operationName?: string;
+}
+
+const calculateBackoffDelay = (baseDelay: number, multiplier: number, attempt: number): number => {
+  if (baseDelay <= 0) {
+    return 0;
+  }
+  return Math.max(0, Math.round(baseDelay * Math.pow(multiplier, attempt)));
+};
+
+const sleep = (durationMs: number): Promise<void> =>
+  durationMs > 0 ? new Promise((resolve) => setTimeout(resolve, durationMs)) : Promise.resolve();
+
+interface KnowrithmClientOptions {
+  apiKey?: string;
+  apiSecret?: string;
+  bearerToken?: string;
+  baseUrl?: string;
+  apiVersion?: string;
+  timeout?: number;
+  maxRetries?: number;
+  retryDelay?: number;
+  backoffMultiplier?: number;
+  retryableStatusCodes?: number[];
+  config?: Partial<KnowrithmConfig>;
+}
+
 /**
  * Main client for interacting with the Knowrithm API using API Key authentication
  * 
@@ -120,13 +166,20 @@ export class KnowrithmClient {
   public providers: ProviderService;
   public websites: WebsiteService;
 
-  constructor(options: {
-    apiKey?: string;
-    apiSecret?: string;
-    bearerToken?: string;
-    config?: Partial<KnowrithmConfig>;
-  }) {
-    const { apiKey, apiSecret, bearerToken, config } = options;
+  constructor(options: KnowrithmClientOptions) {
+    const {
+      apiKey,
+      apiSecret,
+      bearerToken,
+      config,
+      baseUrl,
+      apiVersion,
+      timeout,
+      maxRetries,
+      retryDelay,
+      backoffMultiplier,
+      retryableStatusCodes,
+    } = options;
 
     if ((!apiKey || !apiSecret) && !bearerToken) {
       throw new Error('KnowrithmClient requires either apiKey/apiSecret or bearerToken credentials.');
@@ -139,12 +192,36 @@ export class KnowrithmClient {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
     this.bearerToken = bearerToken;
-    this.config = new KnowrithmConfig(config);
+    const mergedConfig: Partial<KnowrithmConfig> = {
+      ...config,
+    };
+
+    if (baseUrl !== undefined) {
+      mergedConfig.baseUrl = baseUrl;
+    }
+    if (apiVersion !== undefined) {
+      mergedConfig.apiVersion = apiVersion;
+    }
+    if (timeout !== undefined) {
+      mergedConfig.timeout = timeout;
+    }
+    if (maxRetries !== undefined) {
+      mergedConfig.maxRetries = maxRetries;
+    }
+    if (retryDelay !== undefined) {
+      mergedConfig.retryInitialDelay = retryDelay;
+    }
+    if (backoffMultiplier !== undefined) {
+      mergedConfig.retryBackoffFactor = backoffMultiplier;
+    }
+    if (retryableStatusCodes !== undefined) {
+      mergedConfig.retryableStatusCodes = retryableStatusCodes;
+    }
+
+    this.config = new KnowrithmConfig(mergedConfig);
 
     // Create axios instance
-    this.axiosInstance = axios.create({
-      timeout: this.config.timeout,
-    });
+    this.axiosInstance = axios.create();
 
     // Initialize service modules
     this.auth = new AuthService(this);
@@ -189,34 +266,253 @@ export class KnowrithmClient {
     return {};
   }
 
+  private shouldResolveAsyncTask(response: AxiosResponse): boolean {
+    if (!response) {
+      return false;
+    }
+
+    const status = response.status;
+    const payload = response.data;
+    if (!payload || typeof payload !== 'object') {
+      return false;
+    }
+
+    if (status === 202) {
+      return true;
+    }
+
+    const statusUrl = this.extractStatusUrl(payload);
+    return Boolean(statusUrl);
+  }
+
+  private extractStatusUrl(payload: Record<string, any>): string | null {
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    const candidateKeys = ['status_url', 'task_status_url'];
+    for (const key of candidateKeys) {
+      const value = payload[key];
+      if (typeof value === 'string' && value.length > 0) {
+        return value;
+      }
+    }
+
+    const taskId = payload.task_id || payload.taskId;
+    if (typeof taskId === 'string' && taskId.length > 0) {
+      return `tasks/${taskId}/status`;
+    }
+
+    return null;
+  }
+
+  private toAbsoluteUrl(pathOrUrl: string): string {
+    const base = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
+    return new URL(pathOrUrl, base).toString();
+  }
+
+  private normalizeTaskStatus(payload: Record<string, any>): string | undefined {
+    if (!payload || typeof payload !== 'object') {
+      return undefined;
+    }
+
+    const statusFields = ['status', 'state', 'task_status', 'taskState'];
+    for (const field of statusFields) {
+      const value = payload[field];
+      if (value !== undefined && value !== null) {
+        return String(value).toLowerCase();
+      }
+    }
+
+    return undefined;
+  }
+
+  private isSuccessfulTaskPayload(payload: Record<string, any>): boolean {
+    if (!payload || typeof payload !== 'object') {
+      return false;
+    }
+
+    const status = this.normalizeTaskStatus(payload);
+    if (status && this.config.taskSuccessStatuses.includes(status)) {
+      return true;
+    }
+
+    if (!status && (payload.result !== undefined || payload.success === true)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private isFailedTaskPayload(payload: Record<string, any>): boolean {
+    if (!payload || typeof payload !== 'object') {
+      return false;
+    }
+
+    const status = this.normalizeTaskStatus(payload);
+    if (status && this.config.taskFailureStatuses.includes(status)) {
+      return true;
+    }
+
+    if (payload.error || payload.errors) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private extractTaskResult(payload: Record<string, any>): any {
+    if (!payload || typeof payload !== 'object') {
+      return payload;
+    }
+
+    if (payload.result !== undefined) {
+      return payload.result;
+    }
+
+    if (payload.data !== undefined) {
+      return payload.data;
+    }
+
+    return payload;
+  }
+
+  private async resolveAsyncTask<T>(
+    response: AxiosResponse,
+    requestHeaders: Record<string, string>,
+    timeout: number,
+    operationName: string
+  ): Promise<T> {
+    const initialPayload = (response.data && typeof response.data === 'object') ? response.data : {};
+    const statusUrl = this.extractStatusUrl(initialPayload);
+
+    if (!statusUrl) {
+      return initialPayload as T;
+    }
+
+    const resolvedStatusUrl = this.toAbsoluteUrl(statusUrl);
+    return this.waitForTaskResult<T>(resolvedStatusUrl, requestHeaders, timeout, operationName, initialPayload);
+  }
+
+  private async waitForTaskResult<T>(
+    statusUrl: string,
+    requestHeaders: Record<string, string>,
+    timeout: number,
+    operationName: string,
+    initialPayload?: Record<string, any>
+  ): Promise<T> {
+    const pollInterval = Math.max(100, this.config.taskPollingInterval);
+    const deadline = Date.now() + this.config.taskPollingTimeout;
+    let attempt = 0;
+    let payload: Record<string, any> | undefined = initialPayload;
+
+    while (true) {
+      if (payload && this.isSuccessfulTaskPayload(payload)) {
+        return this.extractTaskResult(payload) as T;
+      }
+
+      if (payload && this.isFailedTaskPayload(payload)) {
+        const normalizedStatus = this.normalizeTaskStatus(payload);
+        const message =
+          payload.error ||
+          payload.message ||
+          payload.detail ||
+          `Asynchronous task ${normalizedStatus || 'failed'} (${operationName})`;
+
+        throw new KnowrithmAPIError(message, undefined, {
+          operation: operationName,
+          task: payload,
+        });
+      }
+
+      if (Date.now() > deadline) {
+        throw new KnowrithmAPIError('Task polling timed out', undefined, {
+          operation: operationName,
+          task_status_url: statusUrl,
+          last_payload: payload,
+        });
+      }
+
+      const delay = attempt === 0 && payload ? 0 : pollInterval;
+      if (delay > 0) {
+        await sleep(delay);
+      }
+
+      const statusResponse = await this.axiosInstance.request({
+        method: 'GET',
+        url: statusUrl,
+        headers: requestHeaders,
+        timeout,
+        validateStatus: () => true,
+      });
+
+      if (statusResponse.status >= 400) {
+        let errorData: any = {};
+        try {
+          errorData = statusResponse.data ?? {};
+        } catch {
+          errorData = {};
+        }
+
+        const enrichedError =
+          errorData && typeof errorData === 'object'
+            ? { ...errorData, operation: operationName, attemptNumber: attempt + 1 }
+            : {
+                detail: errorData,
+                operation: operationName,
+                attemptNumber: attempt + 1,
+              };
+
+        throw new KnowrithmAPIError(
+          enrichedError.detail || enrichedError.message || `HTTP ${statusResponse.status}`,
+          statusResponse.status,
+          enrichedError
+        );
+      }
+
+      payload =
+        statusResponse.data && typeof statusResponse.data === 'object'
+          ? (statusResponse.data as Record<string, any>)
+          : {};
+
+      attempt += 1;
+    }
+  }
+
   /**
    * Make HTTP request with error handling and retries
    */
   async makeRequest<T = any>(
     method: string,
     endpoint: string,
-    options?: {
-      data?: any;
-      params?: Record<string, any>;
-      headers?: Record<string, string>;
-      files?: Array<{ name: string; file: File | Blob | Buffer | ArrayBuffer | ArrayBufferView | NodeJS.ReadableStream; filename?: string }>;
-    }
+    options: MakeRequestOptions = {}
   ): Promise<T> {
+    const {
+      data,
+      params,
+      headers,
+      files,
+      timeout: timeoutOverride,
+      maxRetries: maxRetriesOverride,
+      retryDelay,
+      backoffMultiplier,
+      retryableStatusCodes,
+      operationName,
+    } = options;
+
     const url = `${this.baseUrl}${endpoint}`;
     const requestHeaders: Record<string, string> = {
       ...this.getAuthHeaders(),
-      ...options?.headers,
+      ...headers,
     };
 
-    let requestData: any = options?.data;
+    let requestData: any = data;
     let isFormData = false;
 
-    // Handle file uploads
-    if (options?.files && options.files.length > 0) {
+    if (files && files.length > 0) {
       const formData = new FormData();
-      
-      // Add files
-      options.files.forEach(({ name, file, filename }) => {
+
+      files.forEach(({ name, file, filename }) => {
         const normalizedFile = normalizeFormDataValue(file);
         if (filename) {
           formData.append(name, normalizedFile as any, filename);
@@ -225,11 +521,15 @@ export class KnowrithmClient {
         }
       });
 
-      // Add other data fields
-      if (options.data) {
-        Object.entries(options.data).forEach(([key, value]) => {
+      if (data) {
+        Object.entries(data).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
-            formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+            formData.append(
+              key,
+              typeof value === 'object' && !(value instanceof File) && !(value instanceof Blob)
+                ? JSON.stringify(value)
+                : String(value)
+            );
           }
         });
       }
@@ -240,26 +540,32 @@ export class KnowrithmClient {
       if (requestHeaders['Content-Type']) {
         delete requestHeaders['Content-Type'];
       }
-    } else if (options?.data && !requestHeaders['Content-Type']) {
+    } else if (data && !requestHeaders['Content-Type']) {
       requestHeaders['Content-Type'] = 'application/json';
     }
 
-    for (let attempt = 0; attempt < this.config.maxRetries; attempt++) {
+    const timeout = timeoutOverride ?? this.config.timeout;
+    const totalAttempts = Math.max(1, maxRetriesOverride ?? this.config.maxRetries);
+    const baseDelay = retryDelay ?? this.config.retryInitialDelay;
+    const multiplier = backoffMultiplier ?? this.config.retryBackoffFactor;
+    const retryStatuses = retryableStatusCodes ?? this.config.retryableStatusCodes;
+    const resolvedOperationName = operationName ?? `${method.toUpperCase()} ${endpoint}`;
+
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
       try {
         const axiosConfig: AxiosRequestConfig = {
           method: method.toUpperCase(),
           url,
           headers: requestHeaders,
-          params: options?.params,
-          timeout: this.config.timeout,
-          validateStatus: () => true, // Handle all status codes manually
+          params,
+          timeout,
+          validateStatus: () => true,
         };
 
         if (requestData) {
           if (isFormData) {
             axiosConfig.data = requestData;
           } else if (method.toUpperCase() === 'GET') {
-            // For GET requests, data should be in params
             axiosConfig.params = { ...axiosConfig.params, ...requestData };
           } else {
             axiosConfig.data = requestData;
@@ -268,7 +574,6 @@ export class KnowrithmClient {
 
         const response: AxiosResponse = await this.axiosInstance.request(axiosConfig);
 
-        // Handle errors
         if (response.status >= 400) {
           let errorData: any = {};
           try {
@@ -277,15 +582,33 @@ export class KnowrithmClient {
             errorData = { detail: response.statusText };
           }
 
+          const enrichedErrorData =
+            errorData && typeof errorData === 'object'
+              ? { ...errorData, operation: resolvedOperationName, attemptNumber: attempt + 1 }
+              : {
+                  detail: errorData,
+                  operation: resolvedOperationName,
+                  attemptNumber: attempt + 1,
+                };
+
+          if (retryStatuses.includes(response.status) && attempt < totalAttempts - 1) {
+            const delay = calculateBackoffDelay(baseDelay, multiplier, attempt);
+            await sleep(delay);
+            continue;
+          }
+
           throw new KnowrithmAPIError(
-            errorData.detail || errorData.message || `HTTP ${response.status}`,
+            enrichedErrorData.detail || enrichedErrorData.message || `HTTP ${response.status}`,
             response.status,
-            errorData,
-            errorData.error_code
+            enrichedErrorData,
+            enrichedErrorData.error_code
           );
         }
 
-        // Return empty success object for no content
+        if (this.shouldResolveAsyncTask(response)) {
+          return this.resolveAsyncTask<T>(response, requestHeaders, timeout, resolvedOperationName);
+        }
+
         if (!response.data || Object.keys(response.data).length === 0) {
           return { success: true } as T;
         }
@@ -296,15 +619,70 @@ export class KnowrithmClient {
           throw error;
         }
 
-        if (attempt === this.config.maxRetries - 1) {
+        const axiosError = axios.isAxiosError(error) ? (error as AxiosError) : undefined;
+        const statusCode = axiosError?.response?.status;
+        const isTimeoutError = axiosError?.code === 'ECONNABORTED';
+        const shouldRetry =
+          attempt < totalAttempts - 1 &&
+          (isTimeoutError ||
+            (statusCode !== undefined && retryStatuses.includes(statusCode)) ||
+            !axiosError);
+
+        if (shouldRetry) {
+          const delay = calculateBackoffDelay(baseDelay, multiplier, attempt);
+          await sleep(delay);
+          continue;
+        }
+
+        if (axiosError) {
+          if (isTimeoutError) {
+            throw new KnowrithmAPIError(
+              `Request timed out after ${timeout} ms`,
+              statusCode,
+              {
+                operation: resolvedOperationName,
+                attemptNumber: attempt + 1,
+                timeoutValue: timeout,
+                suggestion: 'Consider increasing timeout or retries for long-running operations.',
+              },
+              'TIMEOUT'
+            );
+          }
+
+          let errorData: any = {};
+          try {
+            errorData = axiosError.response?.data ?? {};
+          } catch {
+            errorData = {};
+          }
+
+          const enrichedErrorData =
+            errorData && typeof errorData === 'object'
+              ? { ...errorData, operation: resolvedOperationName, attemptNumber: attempt + 1 }
+              : {
+                  detail: errorData,
+                  operation: resolvedOperationName,
+                  attemptNumber: attempt + 1,
+                };
+
           throw new KnowrithmAPIError(
-            `Request failed after ${this.config.maxRetries} attempts: ${error instanceof Error ? error.message : String(error)}`
+            axiosError.message,
+            statusCode,
+            enrichedErrorData,
+            axiosError.code
           );
         }
 
-        // Wait before retry with exponential backoff
-        await new Promise(resolve => 
-          setTimeout(resolve, Math.pow(this.config.retryBackoffFactor, attempt) * 1000)
+        const failureMessage =
+          error instanceof Error ? error.message : String(error);
+
+        throw new KnowrithmAPIError(
+          `Request failed: ${failureMessage}`,
+          undefined,
+          {
+            operation: resolvedOperationName,
+            attemptNumber: attempt + 1,
+          }
         );
       }
     }

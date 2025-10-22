@@ -11,6 +11,38 @@ import { DocumentService } from './services/document';
 import { LeadService } from './services/lead';
 import { SettingsService, ProviderService } from './services/settings';
 import { WebsiteService } from './services/website';
+interface RequestRetryOptions {
+    maxRetries?: number;
+    retryDelay?: number;
+    backoffMultiplier?: number;
+    retryableStatusCodes?: number[];
+}
+interface MakeRequestFileDescriptor {
+    name: string;
+    file: File | Blob | Buffer | ArrayBuffer | ArrayBufferView | NodeJS.ReadableStream | SharedArrayBuffer;
+    filename?: string;
+}
+interface MakeRequestOptions extends RequestRetryOptions {
+    data?: any;
+    params?: Record<string, any>;
+    headers?: Record<string, string>;
+    files?: MakeRequestFileDescriptor[];
+    timeout?: number;
+    operationName?: string;
+}
+interface KnowrithmClientOptions {
+    apiKey?: string;
+    apiSecret?: string;
+    bearerToken?: string;
+    baseUrl?: string;
+    apiVersion?: string;
+    timeout?: number;
+    maxRetries?: number;
+    retryDelay?: number;
+    backoffMultiplier?: number;
+    retryableStatusCodes?: number[];
+    config?: Partial<KnowrithmConfig>;
+}
 /**
  * Main client for interacting with the Knowrithm API using API Key authentication
  *
@@ -58,12 +90,7 @@ export declare class KnowrithmClient {
     settings: SettingsService;
     providers: ProviderService;
     websites: WebsiteService;
-    constructor(options: {
-        apiKey?: string;
-        apiSecret?: string;
-        bearerToken?: string;
-        config?: Partial<KnowrithmConfig>;
-    });
+    constructor(options: KnowrithmClientOptions);
     get baseUrl(): string;
     /**
      * Headers required for authenticating requests directly with fetch/SSE.
@@ -72,15 +99,7 @@ export declare class KnowrithmClient {
     /**
      * Make HTTP request with error handling and retries
      */
-    makeRequest<T = any>(method: string, endpoint: string, options?: {
-        data?: any;
-        params?: Record<string, any>;
-        headers?: Record<string, string>;
-        files?: Array<{
-            name: string;
-            file: File | Blob | Buffer | ArrayBuffer | ArrayBufferView | NodeJS.ReadableStream;
-            filename?: string;
-        }>;
-    }): Promise<T>;
+    makeRequest<T = any>(method: string, endpoint: string, options?: MakeRequestOptions): Promise<T>;
 }
+export {};
 //# sourceMappingURL=client.d.ts.map

@@ -7,11 +7,26 @@ exports.DocumentService = void 0;
 // src/services/document.ts
 const path_1 = __importDefault(require("path"));
 const fs_1 = require("fs");
+const isHeadersRecord = (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return false;
+    }
+    return Object.values(value).every((entry) => typeof entry === 'string');
+};
+const normalizeRequestOptions = (overrides) => {
+    if (!overrides) {
+        return {};
+    }
+    if (isHeadersRecord(overrides)) {
+        return { headers: overrides };
+    }
+    return overrides;
+};
 class DocumentService {
     constructor(client) {
         this.client = client;
     }
-    async uploadDocuments(agentId, options = {}, headers) {
+    async uploadDocuments(agentId, options = {}, requestOptions) {
         const { filePaths = [], files = [], urls, url, metadata } = options;
         const payload = { agent_id: agentId };
         if (metadata) {
@@ -66,43 +81,95 @@ class DocumentService {
                     (typeof File !== 'undefined' && data instanceof File ? data.name : undefined),
             }))
             : undefined;
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
         return this.client.makeRequest('POST', '/document/upload', {
             data: payload,
             files: normalizedFiles,
             headers,
+            ...requestOverrides,
         });
     }
-    async listDocuments(params, headers) {
-        return this.client.makeRequest('GET', '/document', { params, headers });
+    async listDocuments(params, requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('GET', '/document', {
+            params,
+            headers,
+            ...requestOverrides,
+        });
     }
-    async listDeletedDocuments(headers) {
-        return this.client.makeRequest('GET', '/document/deleted', { headers });
+    async listDeletedDocuments(requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('GET', '/document/deleted', {
+            headers,
+            ...requestOverrides,
+        });
     }
-    async listDeletedChunks(headers) {
-        return this.client.makeRequest('GET', '/document/chunk/deleted', { headers });
+    async listDeletedChunks(requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('GET', '/document/chunk/deleted', {
+            headers,
+            ...requestOverrides,
+        });
     }
-    async deleteDocument(documentId, headers) {
-        return this.client.makeRequest('DELETE', `/document/${documentId}`, { headers });
+    async deleteDocument(documentId, requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('DELETE', `/document/${documentId}`, {
+            headers,
+            ...requestOverrides,
+        });
     }
-    async restoreDocument(documentId, headers) {
-        return this.client.makeRequest('PATCH', `/document/${documentId}/restore`, { headers });
+    async restoreDocument(documentId, requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('PATCH', `/document/${documentId}/restore`, {
+            headers,
+            ...requestOverrides,
+        });
     }
-    async deleteDocumentChunk(chunkId, headers) {
-        return this.client.makeRequest('DELETE', `/document/chunk/${chunkId}`, { headers });
+    async deleteDocumentChunk(chunkId, requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('DELETE', `/document/chunk/${chunkId}`, {
+            headers,
+            ...requestOverrides,
+        });
     }
-    async restoreDocumentChunk(chunkId, headers) {
-        return this.client.makeRequest('PATCH', `/document/chunk/${chunkId}/restore`, { headers });
+    async restoreDocumentChunk(chunkId, requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('PATCH', `/document/chunk/${chunkId}/restore`, {
+            headers,
+            ...requestOverrides,
+        });
     }
-    async deleteDocumentChunks(documentId, headers) {
-        return this.client.makeRequest('DELETE', `/document/${documentId}/chunk`, { headers });
+    async deleteDocumentChunks(documentId, requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('DELETE', `/document/${documentId}/chunk`, {
+            headers,
+            ...requestOverrides,
+        });
     }
-    async restoreAllDocumentChunks(documentId, headers) {
-        return this.client.makeRequest('PATCH', `/document/${documentId}/chunk/restore-all`, { headers });
+    async restoreAllDocumentChunks(documentId, requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
+        return this.client.makeRequest('PATCH', `/document/${documentId}/chunk/restore-all`, {
+            headers,
+            ...requestOverrides,
+        });
     }
-    async bulkDeleteDocuments(documentIds, headers) {
+    async bulkDeleteDocuments(documentIds, requestOptions) {
+        const resolvedRequestOptions = normalizeRequestOptions(requestOptions);
+        const { headers, ...requestOverrides } = resolvedRequestOptions;
         return this.client.makeRequest('DELETE', '/document/bulk-delete', {
             data: { document_ids: documentIds },
             headers,
+            ...requestOverrides,
         });
     }
 }

@@ -23,5 +23,5 @@ export type { WebsiteSource, WebsitePage, WebsiteCrawlStatus, WebsitePageStatus,
 export * from './types/enums';
 export * from './types/auth';
 export * from './types/common';
-export type { UploadDocumentsOptions, UploadDocumentsResponse, UploadedDocument, UploadDocumentsFileDescriptor, UploadDocumentsLegacyFileDescriptor, } from './types/document';
+export type { UploadDocumentsOptions, UploadDocumentsResponse, UploadedDocument, UploadDocumentsFileDescriptor, UploadDocumentsLegacyFileDescriptor, UploadDocumentsRequestOptions, } from './types/document';
 //# sourceMappingURL=index.d.ts.map

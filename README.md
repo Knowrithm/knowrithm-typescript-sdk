@@ -17,6 +17,7 @@ The Knowrithm TypeScript SDK provides a comprehensive, type-safe interface for i
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Authentication](#authentication)
+- [Request Configuration](#request-configuration)
 - [File Uploads](#file-uploads)
 - [Service Reference](#service-reference)
   - [AuthService](#authservice)
@@ -176,6 +177,46 @@ const refreshed = await authClient.auth.refreshAccessToken(authResponse.refresh_
 
 > **Note**: Unless a route explicitly states otherwise, supply either `X-API-Key` + `X-API-Secret` with proper scopes or `Authorization: Bearer <JWT>`. All service methods accept an optional `headers` parameter for custom authentication.
 
+## Request Configuration
+
+Configure timeouts and retry behavior globally when constructing the client, or override them for specific calls when needed.
+
+### Global Defaults
+
+```typescript
+const client = new KnowrithmClient({
+  apiKey: 'your-api-key',
+  apiSecret: 'your-api-secret',
+  timeout: 60_000,           // 60 seconds
+  maxRetries: 5,
+  retryDelay: 1_500,         // milliseconds before first retry
+  backoffMultiplier: 2,      // exponential backoff factor
+  retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+});
+```
+
+### Per-Request Overrides
+
+DocumentService helpers that previously accepted an optional `headers` argument now support a richer options object:
+
+```typescript
+await client.documents.uploadDocuments(agentId, {
+  filePaths: ['./large-manual.pdf'],
+}, {
+  timeout: 120_000,              // 2 minutes for large uploads
+  maxRetries: 6,
+  retryDelay: 2_000,
+  backoffMultiplier: 2,
+  retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+  headers: { 'X-Debug': 'true' },
+  operationName: 'uploadDocuments (large file)',
+});
+```
+
+If you only need to pass headers, you can still provide a plain `Record<string, string>` and the SDK will keep existing behavior.
+
+Timeout-related failures now include additional context in the thrown `KnowrithmAPIError`, such as `operation`, `attemptNumber`, `timeoutValue`, and remediation suggestions.
+
 ---
 
 ## File Uploads
@@ -190,9 +231,9 @@ const result = await client.documents.uploadDocuments(agentId, {
 });
 
 console.log(result.documents_processed, result.total_submitted);
+```
 
 > Absolute Windows paths such as `D:\DevOps\crm\docs\terms.pdf` are supported; the SDK automatically resolves relative paths against `process.cwd()`.
-```
 
 ### Remote URLs and Mixed Sources
 
@@ -220,6 +261,22 @@ await client.documents.uploadDocuments(agentId, {
 });
 
 // Node.js Buffers and typed arrays are automatically converted to Blob instances before upload.
+```
+
+### Extended Timeouts & Retries
+
+Long-running uploads can override the default timeout and retry strategy using the third argument:
+
+```typescript
+await client.documents.uploadDocuments(agentId, {
+  filePaths: ['./docs/large-whitepaper.pdf'],
+}, {
+  timeout: 120_000,
+  maxRetries: 6,
+  retryDelay: 2_000,
+  backoffMultiplier: 2,
+  headers: { 'X-Upload-Intent': 'large' },
+});
 ```
 
 ### Response Shape & Troubleshooting
@@ -873,59 +930,60 @@ Document upload and management for agent knowledge bases.
 
 #### Methods
 
-- **`uploadDocuments(agentId, options?, headers?)`** - `POST /v1/document/upload`
+- **`uploadDocuments(agentId, options?, requestOptions?)`** - `POST /v1/document/upload`
   - Upload files or scrape URLs and enqueue processing
   - Automatically attaches `X-API-Key`/`X-API-Secret` or `Authorization: Bearer` headers based on client configuration
   - The SDK manages multipart boundaries—do not set the `Content-Type` header manually
   - Options: `{ filePaths?: string[]; files?: UploadDocumentsFileDescriptor[]; url?: string; urls?: string[]; metadata?: Record<string, unknown> }`
+  - Request options: `{ headers?: Record<string, string>; timeout?: number; maxRetries?: number; retryDelay?: number; backoffMultiplier?: number; retryableStatusCodes?: number[]; operationName?: string }`
   - Returns: `Promise<UploadDocumentsResponse>`
 
-- **`listDocuments(headers)`** - `GET /v1/document`
+- **`listDocuments(params?, requestOptions?)`** - `GET /v1/document`
   - List documents for the company
   - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Document[]>`
 
-- **`deleteDocument(documentId, headers)`** - `DELETE /v1/document/<id>`
+- **`deleteDocument(documentId, requestOptions?)`** - `DELETE /v1/document/<id>`
   - Soft delete a document
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`deleteDocumentChunk(chunkId, headers)`** - `DELETE /v1/document/chunk/<id>`
+- **`deleteDocumentChunk(chunkId, requestOptions?)`** - `DELETE /v1/document/chunk/<id>`
   - Soft delete a single document chunk
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<void>`
 
-- **`deleteAllDocumentChunks(documentId, headers)`** - `DELETE /v1/document/<id>/chunk`
+- **`deleteAllDocumentChunks(documentId, requestOptions?)`** - `DELETE /v1/document/<id>/chunk`
   - Delete all chunks for a document
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ deleted: number }>`
 
-- **`restoreDocument(documentId, headers)`** - `PATCH /v1/document/<id>/restore`
+- **`restoreDocument(documentId, requestOptions?)`** - `PATCH /v1/document/<id>/restore`
   - Restore a soft-deleted document
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<Document>`
 
-- **`restoreDocumentChunk(chunkId, headers)`** - `PATCH /v1/document/chunk/<id>/restore`
+- **`restoreDocumentChunk(chunkId, requestOptions?)`** - `PATCH /v1/document/chunk/<id>/restore`
   - Restore a soft-deleted chunk
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<DocumentChunk>`
 
-- **`listDeletedDocuments(headers)`** - `GET /v1/document/deleted`
+- **`listDeletedDocuments(requestOptions?)`** - `GET /v1/document/deleted`
   - List deleted documents
   - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<Document[]>`
 
-- **`listDeletedDocumentChunks(headers)`** - `GET /v1/document/chunk/deleted`
+- **`listDeletedDocumentChunks(requestOptions?)`** - `GET /v1/document/chunk/deleted`
   - List deleted document chunks
   - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<DocumentChunk[]>`
 
-- **`restoreAllDocumentChunks(documentId, headers)`** - `PATCH /v1/document/<id>/chunk/restore-all`
+- **`restoreAllDocumentChunks(documentId, requestOptions?)`** - `PATCH /v1/document/<id>/chunk/restore-all`
   - Restore all chunks for a document
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<{ restored: number }>`
 
-- **`bulkDeleteDocuments(documentIds, headers)`** - `DELETE /v1/document/bulk-delete`
+- **`bulkDeleteDocuments(documentIds, requestOptions?)`** - `DELETE /v1/document/bulk-delete`
   - Bulk delete documents
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Body: `{ document_ids: [uuid, ...] }`

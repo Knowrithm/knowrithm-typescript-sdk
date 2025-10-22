@@ -4,6 +4,8 @@ export declare class KnowrithmConfig {
     timeout: number;
     maxRetries: number;
     retryBackoffFactor: number;
+    retryInitialDelay: number;
+    retryableStatusCodes: number[];
     verifySsl: boolean;
     streamPathTemplate?: string;
     streamBaseUrl?: string;

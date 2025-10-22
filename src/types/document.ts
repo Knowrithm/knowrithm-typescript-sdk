@@ -1,3 +1,5 @@
+import { RequestOptionsOverride } from './common';
+
 export interface UploadedDocument {
   id: string;
   original_filename: string;
@@ -65,3 +67,5 @@ export interface UploadDocumentsOptions {
    */
   metadata?: Record<string, unknown>;
 }
+
+export type UploadDocumentsRequestOptions = RequestOptionsOverride;

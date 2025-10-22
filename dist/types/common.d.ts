@@ -13,4 +13,13 @@ export interface DateRangeParams {
     start_date?: string;
     end_date?: string;
 }
+export interface RequestOptionsOverride {
+    headers?: Record<string, string>;
+    timeout?: number;
+    maxRetries?: number;
+    retryDelay?: number;
+    backoffMultiplier?: number;
+    retryableStatusCodes?: number[];
+    operationName?: string;
+}
 //# sourceMappingURL=common.d.ts.map
