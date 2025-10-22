@@ -18,6 +18,7 @@ The Knowrithm TypeScript SDK provides a comprehensive, type-safe interface for i
 - [Quick Start](#quick-start)
 - [Authentication](#authentication)
 - [Request Configuration](#request-configuration)
+- [Automatic Task Resolution](#automatic-task-resolution)
 - [File Uploads](#file-uploads)
 - [Service Reference](#service-reference)
   - [AuthService](#authservice)
@@ -79,7 +80,7 @@ const client = new KnowrithmClient({
   apiSecret: 'your-api-secret',
 });
 
-// Create an agent
+// Create an agent (async tasks are resolved automatically)
 const agent = await client.agents.createAgent({
   name: 'Support Bot',
   description: 'Customer support assistant',
@@ -116,24 +117,15 @@ await client.documents.uploadDocuments(agent.agent.id, {
 
 // Start a conversation and send a message
 const conversation = await client.conversations.createConversation(agent.agent.id);
-const queued = await client.messages.sendMessage(
+const reply = await client.messages.sendMessage(
   conversation.conversation.id,
   'Hello there!'
 );
 
-console.log('Status:', queued.status);        // -> "queued"
-console.log('Task ID:', queued.task_id);
-console.log('Poll URL:', queued.poll_url);    // -> "/v1/conversation/<id>/messages"
-
-// Poll for new messages once the task completes
-const messages = await client.conversations.listConversationMessages(
-  conversation.conversation.id
-);
-
-messages.messages?.forEach((entry) => {
-  console.log(`${entry.role}: ${entry.content}`);
-});
+console.log(`${reply.role}: ${reply.content}`);
 ```
+
+> **No manual polling required.** The client waits for each asynchronous Celery task (agent creation, document ingestion, message generation, etc.) and returns the completed payload once the task succeeds. If the task fails, a `KnowrithmAPIError` is raised with the task details.
 
 ---
 
@@ -192,6 +184,8 @@ const client = new KnowrithmClient({
   retryDelay: 1_500,         // milliseconds before first retry
   backoffMultiplier: 2,      // exponential backoff factor
   retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+  taskPollingInterval: 1_000, // default polling cadence for async tasks
+  taskPollingTimeout: 120_000 // max time to wait for task completion
 });
 ```
 
@@ -216,6 +210,31 @@ await client.documents.uploadDocuments(agentId, {
 If you only need to pass headers, you can still provide a plain `Record<string, string>` and the SDK will keep existing behavior.
 
 Timeout-related failures now include additional context in the thrown `KnowrithmAPIError`, such as `operation`, `attemptNumber`, `timeoutValue`, and remediation suggestions.
+
+---
+
+## Automatic Task Resolution
+
+Many Knowrithm endpoints are asynchronous and normally respond with HTTP `202 Accepted` plus a `task_id`. The SDK now resolves those tasks for you:
+
+- The initial `202` response (or any payload containing `status_url`/`task_id`) triggers a background poll of `/api/v1/tasks/<task_id>/status`.
+- Successful task responses resolve to the task's `result` (or `data`) so your method call returns the *final* API payload.
+- Failed tasks throw a `KnowrithmAPIError` that includes the task metadata, status, and error message from the backend.
+
+You can tune the polling behaviour through the client configuration:
+
+```typescript
+const client = new KnowrithmClient({
+  apiKey: process.env.KNOWRITHM_KEY!,
+  apiSecret: process.env.KNOWRITHM_SECRET!,
+  taskPollingInterval: 1_500,    // milliseconds between polls (default: 1000)
+  taskPollingTimeout: 180_000,   // total wait time in ms (default: 120000)
+  taskSuccessStatuses: ['completed', 'success'],
+  taskFailureStatuses: ['failed', 'error', 'cancelled'],
+});
+```
+
+If a task does not complete before the timeout, the promise rejects with a `KnowrithmAPIError` indicating the last known payload and status URL. Use shorter intervals for rapid feedback, or longer timeouts for large document ingestions and analytics exports.
 
 ---
 

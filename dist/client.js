@@ -172,6 +172,164 @@ class KnowrithmClient {
         }
         return {};
     }
+    shouldResolveAsyncTask(response) {
+        if (!response) {
+            return false;
+        }
+        const status = response.status;
+        const payload = response.data;
+        if (!payload || typeof payload !== 'object') {
+            return false;
+        }
+        if (status === 202) {
+            return true;
+        }
+        const statusUrl = this.extractStatusUrl(payload);
+        return Boolean(statusUrl);
+    }
+    extractStatusUrl(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return null;
+        }
+        const candidateKeys = ['status_url', 'task_status_url'];
+        for (const key of candidateKeys) {
+            const value = payload[key];
+            if (typeof value === 'string' && value.length > 0) {
+                return value;
+            }
+        }
+        const taskId = payload.task_id || payload.taskId;
+        if (typeof taskId === 'string' && taskId.length > 0) {
+            return `tasks/${taskId}/status`;
+        }
+        return null;
+    }
+    toAbsoluteUrl(pathOrUrl) {
+        const base = this.baseUrl.endsWith('/') ? this.baseUrl : `${this.baseUrl}/`;
+        return new URL(pathOrUrl, base).toString();
+    }
+    normalizeTaskStatus(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return undefined;
+        }
+        const statusFields = ['status', 'state', 'task_status', 'taskState'];
+        for (const field of statusFields) {
+            const value = payload[field];
+            if (value !== undefined && value !== null) {
+                return String(value).toLowerCase();
+            }
+        }
+        return undefined;
+    }
+    isSuccessfulTaskPayload(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return false;
+        }
+        const status = this.normalizeTaskStatus(payload);
+        if (status && this.config.taskSuccessStatuses.includes(status)) {
+            return true;
+        }
+        if (!status && (payload.result !== undefined || payload.success === true)) {
+            return true;
+        }
+        return false;
+    }
+    isFailedTaskPayload(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return false;
+        }
+        const status = this.normalizeTaskStatus(payload);
+        if (status && this.config.taskFailureStatuses.includes(status)) {
+            return true;
+        }
+        if (payload.error || payload.errors) {
+            return true;
+        }
+        return false;
+    }
+    extractTaskResult(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return payload;
+        }
+        if (payload.result !== undefined) {
+            return payload.result;
+        }
+        if (payload.data !== undefined) {
+            return payload.data;
+        }
+        return payload;
+    }
+    async resolveAsyncTask(response, requestHeaders, timeout, operationName) {
+        const initialPayload = (response.data && typeof response.data === 'object') ? response.data : {};
+        const statusUrl = this.extractStatusUrl(initialPayload);
+        if (!statusUrl) {
+            return initialPayload;
+        }
+        const resolvedStatusUrl = this.toAbsoluteUrl(statusUrl);
+        return this.waitForTaskResult(resolvedStatusUrl, requestHeaders, timeout, operationName, initialPayload);
+    }
+    async waitForTaskResult(statusUrl, requestHeaders, timeout, operationName, initialPayload) {
+        const pollInterval = Math.max(100, this.config.taskPollingInterval);
+        const deadline = Date.now() + this.config.taskPollingTimeout;
+        let attempt = 0;
+        let payload = initialPayload;
+        while (true) {
+            if (payload && this.isSuccessfulTaskPayload(payload)) {
+                return this.extractTaskResult(payload);
+            }
+            if (payload && this.isFailedTaskPayload(payload)) {
+                const normalizedStatus = this.normalizeTaskStatus(payload);
+                const message = payload.error ||
+                    payload.message ||
+                    payload.detail ||
+                    `Asynchronous task ${normalizedStatus || 'failed'} (${operationName})`;
+                throw new errors_1.KnowrithmAPIError(message, undefined, {
+                    operation: operationName,
+                    task: payload,
+                });
+            }
+            if (Date.now() > deadline) {
+                throw new errors_1.KnowrithmAPIError('Task polling timed out', undefined, {
+                    operation: operationName,
+                    task_status_url: statusUrl,
+                    last_payload: payload,
+                });
+            }
+            const delay = attempt === 0 && payload ? 0 : pollInterval;
+            if (delay > 0) {
+                await sleep(delay);
+            }
+            const statusResponse = await this.axiosInstance.request({
+                method: 'GET',
+                url: statusUrl,
+                headers: requestHeaders,
+                timeout,
+                validateStatus: () => true,
+            });
+            if (statusResponse.status >= 400) {
+                let errorData = {};
+                try {
+                    errorData = statusResponse.data ?? {};
+                }
+                catch {
+                    errorData = {};
+                }
+                const enrichedError = errorData && typeof errorData === 'object'
+                    ? { ...errorData, operation: operationName, attemptNumber: attempt + 1 }
+                    : {
+                        detail: errorData,
+                        operation: operationName,
+                        attemptNumber: attempt + 1,
+                    };
+                throw new errors_1.KnowrithmAPIError(enrichedError.detail || enrichedError.message || `HTTP ${statusResponse.status}`, statusResponse.status, enrichedError);
+            }
+            payload =
+                statusResponse.data && typeof statusResponse.data === 'object'
+                    ? statusResponse.data
+                    : {};
+            attempt += 1;
+        }
+    }
     /**
      * Make HTTP request with error handling and retries
      */
@@ -262,6 +420,9 @@ class KnowrithmClient {
                         continue;
                     }
                     throw new errors_1.KnowrithmAPIError(enrichedErrorData.detail || enrichedErrorData.message || `HTTP ${response.status}`, response.status, enrichedErrorData, enrichedErrorData.error_code);
+                }
+                if (this.shouldResolveAsyncTask(response)) {
+                    return this.resolveAsyncTask(response, requestHeaders, timeout, resolvedOperationName);
                 }
                 if (!response.data || Object.keys(response.data).length === 0) {
                     return { success: true };

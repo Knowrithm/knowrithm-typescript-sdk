@@ -96,6 +96,15 @@ export declare class KnowrithmClient {
      * Headers required for authenticating requests directly with fetch/SSE.
      */
     getAuthHeaders(): Record<string, string>;
+    private shouldResolveAsyncTask;
+    private extractStatusUrl;
+    private toAbsoluteUrl;
+    private normalizeTaskStatus;
+    private isSuccessfulTaskPayload;
+    private isFailedTaskPayload;
+    private extractTaskResult;
+    private resolveAsyncTask;
+    private waitForTaskResult;
     /**
      * Make HTTP request with error handling and retries
      */

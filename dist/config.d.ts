@@ -10,6 +10,10 @@ export declare class KnowrithmConfig {
     streamPathTemplate?: string;
     streamBaseUrl?: string;
     streamTimeout?: number;
+    taskPollingInterval: number;
+    taskPollingTimeout: number;
+    taskSuccessStatuses: string[];
+    taskFailureStatuses: string[];
     constructor(options?: Partial<KnowrithmConfig>);
 }
 //# sourceMappingURL=config.d.ts.map

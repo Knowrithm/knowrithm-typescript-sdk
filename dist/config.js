@@ -17,6 +17,12 @@ class KnowrithmConfig {
         this.streamPathTemplate = options?.streamPathTemplate || '/conversation/{conversation_id}/messages/stream';
         this.streamBaseUrl = options?.streamBaseUrl;
         this.streamTimeout = options?.streamTimeout;
+        this.taskPollingInterval = options?.taskPollingInterval ?? 1000;
+        this.taskPollingTimeout = options?.taskPollingTimeout ?? 120000;
+        this.taskSuccessStatuses = (options?.taskSuccessStatuses ??
+            ['success', 'completed', 'finished', 'done', 'succeeded']).map((status) => status.toLowerCase());
+        this.taskFailureStatuses = (options?.taskFailureStatuses ??
+            ['failed', 'failure', 'error', 'cancelled', 'timeout', 'revoked']).map((status) => status.toLowerCase());
     }
 }
 exports.KnowrithmConfig = KnowrithmConfig;
