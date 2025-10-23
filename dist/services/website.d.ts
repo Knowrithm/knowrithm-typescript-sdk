@@ -69,8 +69,11 @@ export interface TriggerWebsiteCrawlPayload {
 }
 export interface TriggerWebsiteCrawlResponse {
     status: string;
-    task_id?: string;
-    website_source_id: string;
+    website_source_id?: string;
+    processed_pages?: number;
+    discovered_urls?: string[];
+    failures?: Array<Record<string, any>>;
+    [key: string]: any;
 }
 export interface WebsiteHandshakePayload {
     agent_id: string;
@@ -82,6 +85,10 @@ export interface WebsiteHandshakeResponse {
     website_source?: WebsiteSource;
     website_page?: WebsitePage;
     crawl_task_id?: string | null;
+}
+export interface DeleteWebsiteSourceResponse {
+    status: string;
+    [key: string]: any;
 }
 /**
  * Client for managing website awareness and crawling operations.
@@ -112,9 +119,15 @@ export declare class WebsiteService {
     /**
      * Manually enqueue a crawl job for a registered website source.
      *
-     * Endpoint: `POST /v1/website/source/<source_id>/crawl`
+     * Endpoint: `POST /v1/sdk/website/source/<source_id>/crawl`
      */
     triggerWebsiteCrawl(sourceId: string, payload?: TriggerWebsiteCrawlPayload, headers?: Record<string, string>): Promise<TriggerWebsiteCrawlResponse>;
+    /**
+     * Soft delete a website source synchronously.
+     *
+     * Endpoint: `DELETE /v1/sdk/website/source/<source_id>`
+     */
+    deleteWebsiteSource(sourceId: string, headers?: Record<string, string>): Promise<DeleteWebsiteSourceResponse>;
     /**
      * Declare an active webpage context from an embedded widget.
      *

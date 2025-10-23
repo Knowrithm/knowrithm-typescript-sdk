@@ -34,6 +34,8 @@ export type {
   CreateSdkAgentPayload,
   SdkAgentSettingsPayload,
   UpdateAgentPayload,
+  UpdateAgentResponse,
+  DeleteAgentResponse,
   ListAgentsParams,
   CloneAgentPayload,
   GetAgentByNameParams,
@@ -49,6 +51,12 @@ export type {
   ListAgentConversationsParams,
 } from './services/conversation';
 export type {
+  CreateDatabaseConnectionPayload,
+  CreateDatabaseConnectionResponse,
+  UpdateDatabaseConnectionResponse,
+  DeleteDatabaseConnectionResponse,
+} from './services/database';
+export type {
   WebsiteSource,
   WebsitePage,
   WebsiteCrawlStatus,
@@ -59,9 +67,16 @@ export type {
   ListWebsitePagesResponse,
   TriggerWebsiteCrawlPayload,
   TriggerWebsiteCrawlResponse,
+  DeleteWebsiteSourceResponse,
   WebsiteHandshakePayload,
   WebsiteHandshakeResponse,
 } from './services/website';
+export type {
+  CreateLeadPayload,
+  CreateLeadResponse,
+  UpdateLeadResponse,
+  DeleteLeadResponse,
+} from './services/lead';
 
 // Types and enums
 export * from './types/enums';

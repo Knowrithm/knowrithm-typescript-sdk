@@ -69,6 +69,16 @@ export interface UpdateAgentPayload {
     languages?: string[];
     status?: string;
 }
+export interface UpdateAgentResponse {
+    agent: Record<string, any>;
+    initiated_by?: string | null;
+    [key: string]: any;
+}
+export interface DeleteAgentResponse {
+    agent_id: string;
+    initiated_by?: string | null;
+    [key: string]: any;
+}
 export interface ListAgentsParams {
     company_id?: string;
     status?: string;
@@ -125,15 +135,15 @@ export declare class AgentService {
     /**
      * Replace an agent's metadata and associated LLM settings
      *
-     * Endpoint: `PUT /v1/agent/<agent_id>`
+     * Endpoint: `PUT /v1/sdk/agent/<agent_id>`
      */
-    updateAgent(agentId: string, payload: UpdateAgentPayload, headers?: Record<string, string>): Promise<any>;
+    updateAgent(agentId: string, payload: UpdateAgentPayload, headers?: Record<string, string>): Promise<UpdateAgentResponse>;
     /**
      * Soft-delete an agent (must have no active conversations)
      *
-     * Endpoint: `DELETE /v1/agent/<agent_id>`
+     * Endpoint: `DELETE /v1/sdk/agent/<agent_id>`
      */
-    deleteAgent(agentId: string, headers?: Record<string, string>): Promise<any>;
+    deleteAgent(agentId: string, headers?: Record<string, string>): Promise<DeleteAgentResponse>;
     /**
      * Restore a soft-deleted agent
      *

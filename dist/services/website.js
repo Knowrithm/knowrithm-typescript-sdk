@@ -35,13 +35,21 @@ class WebsiteService {
     /**
      * Manually enqueue a crawl job for a registered website source.
      *
-     * Endpoint: `POST /v1/website/source/<source_id>/crawl`
+     * Endpoint: `POST /v1/sdk/website/source/<source_id>/crawl`
      */
     async triggerWebsiteCrawl(sourceId, payload, headers) {
-        return this.client.makeRequest('POST', `/website/source/${sourceId}/crawl`, {
+        return this.client.makeRequest('POST', `/sdk/website/source/${sourceId}/crawl`, {
             data: payload,
             headers,
         });
+    }
+    /**
+     * Soft delete a website source synchronously.
+     *
+     * Endpoint: `DELETE /v1/sdk/website/source/<source_id>`
+     */
+    async deleteWebsiteSource(sourceId, headers) {
+        return this.client.makeRequest('DELETE', `/sdk/website/source/${sourceId}`, { headers });
     }
     /**
      * Declare an active webpage context from an embedded widget.

@@ -638,15 +638,15 @@ AI agent creation and management.
   - Params: `{ company_id?, status?, search?, page?, per_page? }` (company_id only for super-admin)
   - Returns: `Promise<PaginatedResponse<Agent>>`
 
-- **`updateAgent(agentId, payload, headers)`** - `PUT /v1/agent/<id>`
-  - Updates agent configuration
+- **`updateAgent(agentId, payload, headers)`** - `PUT /v1/sdk/agent/<id>`
+  - Updates agent configuration synchronously
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
-  - Returns: `Promise<Agent>`
+  - Returns: `Promise<{ agent: Agent; initiated_by?: string | null }>`
 
-- **`deleteAgent(agentId, headers)`** - `DELETE /v1/agent/<id>`
+- **`deleteAgent(agentId, headers)`** - `DELETE /v1/sdk/agent/<id>`
   - Soft deletes an agent (requires no active conversations)
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
-  - Returns: `Promise<void>`
+  - Returns: `Promise<{ agent_id: string; initiated_by?: string | null }>`
 
 - **`restoreAgent(agentId, headers)`** - `PATCH /v1/agent/<id>/restore`
   - Restores soft-deleted agent
@@ -829,11 +829,13 @@ Database connection management and text-to-SQL functionality.
 
 #### Methods
 
-- **`createConnection(name, url, databaseType, agentId, connectionParams?, headers)`** - `POST /v1/database-connection`
-  - Creates database connection
+- **`createConnection(payload, headers?)`** - `POST /v1/sdk/database`
+  - Creates and tests a database connection synchronously
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Database types: `'postgres' | 'mysql' | 'mongodb' | 'sqlite'`
-  - Returns: `Promise<DatabaseConnection>`
+  - Payload: `{ name, url, database_type, agent_id, connection_params?, company_id?, user_id? }`
+  - Returns: `Promise<{ connection, test_result?, is_active? }>`
+  - Backwards compatible positional signature supported: `createConnection(name, url, databaseType, agentId, connectionParams?, headers?)`
 
 - **`listConnections(params?, headers)`** - `GET /v1/database-connection`
   - Lists database connections with filtering
@@ -845,20 +847,20 @@ Database connection management and text-to-SQL functionality.
   - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<DatabaseConnection>`
 
-- **`updateConnection(connectionId, payload, headers)`** - `PUT /v1/database-connection/<id>`
-  - Updates connection (full replacement)
+- **`updateConnection(connectionId, payload, headers)`** - `PUT /v1/sdk/database/<id>`
+  - Updates connection synchronously (full replacement)
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
-  - Returns: `Promise<DatabaseConnection>`
+  - Returns: `Promise<{ connection: DatabaseConnection; updated_fields?: string[]; initiated_by?: string | null }>`
 
 - **`patchConnection(connectionId, updates, headers)`** - `PATCH /v1/database-connection/<id>`
   - Partial connection update
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Returns: `Promise<DatabaseConnection>`
 
-- **`deleteConnection(connectionId, headers)`** - `DELETE /v1/database-connection/<id>`
-  - Soft deletes connection
+- **`deleteConnection(connectionId, headers)`** - `DELETE /v1/sdk/database/<id>`
+  - Soft deletes connection synchronously (tables are deactivated too)
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
-  - Returns: `Promise<void>`
+  - Returns: `Promise<{ connection_id: string; deleted_tables_count?: number; initiated_by?: string | null }>`
 
 - **`restoreConnection(connectionId, headers)`** - `PATCH /v1/database-connection/<id>/restore`
   - Restores deleted connection
@@ -1121,10 +1123,10 @@ Lead capture and management for the widget.
   - Payload: `{ agent_id, first_name, last_name, email, phone?, source?, notes?, consent_marketing?, consent_data_processing? }`
   - Returns: `Promise<Lead>` with JWT token for widget authentication
 
-- **`createLead(payload, headers)`** - `POST /v1/lead`
-  - Admin-created lead via authenticated API
+- **`createLead(payload, headers?)`** - `POST /v1/sdk/lead`
+  - Admin-created lead via authenticated API (synchronous response)
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
-  - Returns: `Promise<Lead>`
+  - Returns: `Promise<{ lead: Lead }>`
 
 - **`getLead(leadId, headers)`** - `GET /v1/lead/<id>`
   - Gets lead details
@@ -1137,15 +1139,15 @@ Lead capture and management for the widget.
   - Status: `'new' | 'contacted' | 'qualified' | 'converted' | 'lost'`
   - Returns: `Promise<PaginatedResponse<Lead>>`
 
-- **`updateLead(leadId, payload, headers)`** - `PUT /v1/lead/<id>`
-  - Updates lead information
+- **`updateLead(leadId, payload, headers)`** - `PUT /v1/sdk/lead/<id>`
+  - Updates lead information synchronously
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
-  - Returns: `Promise<Lead>`
+  - Returns: `Promise<{ lead: Lead; initiated_by?: string | null }>`
 
-- **`deleteLead(leadId, headers)`** - `DELETE /v1/lead/<id>`
+- **`deleteLead(leadId, headers)`** - `DELETE /v1/sdk/lead/<id>`
   - Soft deletes lead
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
-  - Returns: `Promise<void>`
+  - Returns: `Promise<{ lead_id: string; initiated_by?: string | null }>`
 
 ---
 
@@ -1295,11 +1297,16 @@ Website crawling and page awareness for agent knowledge bases.
   - Requires: `X-API-Key` + `X-API-Secret` (scope `read`) or JWT
   - Returns: `Promise<{ website_source: WebsiteSource; pages: WebsitePage[] }>`
 
-- **`triggerWebsiteCrawl(sourceId, payload, headers)`** - `POST /v1/website/source/<source_id>/crawl`
-  - Queues a fresh crawl for the website source (optionally overriding `max_pages`)
+- **`triggerWebsiteCrawl(sourceId, payload, headers)`** - `POST /v1/sdk/website/source/<source_id>/crawl`
+  - Triggers a crawl synchronously for the website source (optionally overriding `max_pages`)
   - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
   - Payload: `{ max_pages? }`
-  - Returns: `Promise<{ status: string; task_id?: string; website_source_id: string }>`
+  - Returns: `Promise<{ status: string; website_source_id?: string; processed_pages?: number; discovered_urls?: string[]; failures?: Array<Record<string, any>> }>`
+
+- **`deleteWebsiteSource(sourceId, headers)`** - `DELETE /v1/sdk/website/source/<source_id>`
+  - Soft deletes a website source synchronously
+  - Requires: `X-API-Key` + `X-API-Secret` (scope `write`) or JWT
+  - Returns: `Promise<{ status: string; ... }>` (includes status such as `deleted` or `already_inactive`)
 
 - **`handshake(payload, headers)`** - `POST /v1/website/handshake`
   - Declares the active page from an embedded widget and can optionally trigger a crawl

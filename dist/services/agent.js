@@ -55,18 +55,18 @@ class AgentService {
     /**
      * Replace an agent's metadata and associated LLM settings
      *
-     * Endpoint: `PUT /v1/agent/<agent_id>`
+     * Endpoint: `PUT /v1/sdk/agent/<agent_id>`
      */
     async updateAgent(agentId, payload, headers) {
-        return this.client.makeRequest('PUT', `/agent/${agentId}`, { data: payload, headers });
+        return this.client.makeRequest('PUT', `/sdk/agent/${agentId}`, { data: payload, headers });
     }
     /**
      * Soft-delete an agent (must have no active conversations)
      *
-     * Endpoint: `DELETE /v1/agent/<agent_id>`
+     * Endpoint: `DELETE /v1/sdk/agent/<agent_id>`
      */
     async deleteAgent(agentId, headers) {
-        return this.client.makeRequest('DELETE', `/agent/${agentId}`, { headers });
+        return this.client.makeRequest('DELETE', `/sdk/agent/${agentId}`, { headers });
     }
     /**
      * Restore a soft-deleted agent

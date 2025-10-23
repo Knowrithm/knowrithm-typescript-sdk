@@ -75,6 +75,18 @@ export interface UpdateAgentPayload {
   status?: string;
 }
 
+export interface UpdateAgentResponse {
+  agent: Record<string, any>;
+  initiated_by?: string | null;
+  [key: string]: any;
+}
+
+export interface DeleteAgentResponse {
+  agent_id: string;
+  initiated_by?: string | null;
+  [key: string]: any;
+}
+
 export interface ListAgentsParams {
   company_id?: string;
   status?: string;
@@ -163,23 +175,23 @@ export class AgentService {
   /**
    * Replace an agent's metadata and associated LLM settings
    * 
-   * Endpoint: `PUT /v1/agent/<agent_id>`
+   * Endpoint: `PUT /v1/sdk/agent/<agent_id>`
    */
   async updateAgent(
     agentId: string,
     payload: UpdateAgentPayload,
     headers?: Record<string, string>
-  ): Promise<any> {
-    return this.client.makeRequest('PUT', `/agent/${agentId}`, { data: payload, headers });
+  ): Promise<UpdateAgentResponse> {
+    return this.client.makeRequest('PUT', `/sdk/agent/${agentId}`, { data: payload, headers });
   }
 
   /**
    * Soft-delete an agent (must have no active conversations)
    * 
-   * Endpoint: `DELETE /v1/agent/<agent_id>`
+   * Endpoint: `DELETE /v1/sdk/agent/<agent_id>`
    */
-  async deleteAgent(agentId: string, headers?: Record<string, string>): Promise<any> {
-    return this.client.makeRequest('DELETE', `/agent/${agentId}`, { headers });
+  async deleteAgent(agentId: string, headers?: Record<string, string>): Promise<DeleteAgentResponse> {
+    return this.client.makeRequest('DELETE', `/sdk/agent/${agentId}`, { headers });
   }
 
   /**

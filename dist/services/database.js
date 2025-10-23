@@ -5,11 +5,33 @@ class DatabaseService {
     constructor(client) {
         this.client = client;
     }
-    async createConnection(name, url, databaseType, agentId, connectionParams, headers) {
-        const data = { name, url, database_type: databaseType, agent_id: agentId };
-        if (connectionParams)
-            data.connection_params = connectionParams;
-        return this.client.makeRequest('POST', '/database-connection', { data, headers });
+    async createConnection(...args) {
+        const payloadOrName = args[0];
+        let data;
+        let resolvedHeaders;
+        if (typeof payloadOrName === 'string') {
+            const [, url, databaseType, agentId, connectionParams, headers] = args;
+            if (!url || !databaseType || !agentId) {
+                throw new Error('createConnection(name, url, databaseType, agentId, connectionParams?, headers?) requires all required arguments.');
+            }
+            data = {
+                name: payloadOrName,
+                url,
+                database_type: databaseType,
+                agent_id: agentId,
+            };
+            if (connectionParams) {
+                data.connection_params = connectionParams;
+            }
+            resolvedHeaders = headers;
+        }
+        else {
+            const headersOverride = args[1];
+            const { headers: payloadHeaders, ...rest } = payloadOrName;
+            data = rest;
+            resolvedHeaders = headersOverride ?? payloadHeaders;
+        }
+        return this.client.makeRequest('POST', '/sdk/database', { data, headers: resolvedHeaders });
     }
     async listConnections(params, headers) {
         return this.client.makeRequest('GET', '/database-connection', { params, headers });
@@ -18,7 +40,7 @@ class DatabaseService {
         return this.client.makeRequest('GET', `/database-connection/${connectionId}`, { headers });
     }
     async updateConnection(connectionId, updates, headers) {
-        return this.client.makeRequest('PUT', `/database-connection/${connectionId}`, {
+        return this.client.makeRequest('PUT', `/sdk/database/${connectionId}`, {
             data: updates,
             headers,
         });
@@ -30,7 +52,7 @@ class DatabaseService {
         });
     }
     async deleteConnection(connectionId, headers) {
-        return this.client.makeRequest('DELETE', `/database-connection/${connectionId}`, { headers });
+        return this.client.makeRequest('DELETE', `/sdk/database/${connectionId}`, { headers });
     }
     async restoreConnection(connectionId, headers) {
         return this.client.makeRequest('PATCH', `/database-connection/${connectionId}/restore`, { headers });
