@@ -42,6 +42,7 @@ interface KnowrithmClientOptions {
     backoffMultiplier?: number;
     retryableStatusCodes?: number[];
     config?: Partial<KnowrithmConfig>;
+    autoResolveTasks?: boolean;
 }
 /**
  * Main client for interacting with the Knowrithm API using API Key authentication

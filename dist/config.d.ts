@@ -14,6 +14,7 @@ export declare class KnowrithmConfig {
     taskPollingTimeout: number;
     taskSuccessStatuses: string[];
     taskFailureStatuses: string[];
+    autoResolveTasks: boolean;
     constructor(options?: Partial<KnowrithmConfig>);
 }
 //# sourceMappingURL=config.d.ts.map

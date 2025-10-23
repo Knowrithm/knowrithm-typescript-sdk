@@ -97,7 +97,7 @@ const sleep = (durationMs) => durationMs > 0 ? new Promise((resolve) => setTimeo
  */
 class KnowrithmClient {
     constructor(options) {
-        const { apiKey, apiSecret, bearerToken, config, baseUrl, apiVersion, timeout, maxRetries, retryDelay, backoffMultiplier, retryableStatusCodes, } = options;
+        const { apiKey, apiSecret, bearerToken, config, baseUrl, apiVersion, timeout, maxRetries, retryDelay, backoffMultiplier, retryableStatusCodes, autoResolveTasks, } = options;
         if ((!apiKey || !apiSecret) && !bearerToken) {
             throw new Error('KnowrithmClient requires either apiKey/apiSecret or bearerToken credentials.');
         }
@@ -130,6 +130,9 @@ class KnowrithmClient {
         }
         if (retryableStatusCodes !== undefined) {
             mergedConfig.retryableStatusCodes = retryableStatusCodes;
+        }
+        if (autoResolveTasks !== undefined) {
+            mergedConfig.autoResolveTasks = autoResolveTasks;
         }
         this.config = new config_1.KnowrithmConfig(mergedConfig);
         // Create axios instance
@@ -174,6 +177,9 @@ class KnowrithmClient {
     }
     shouldResolveAsyncTask(response) {
         if (!response) {
+            return false;
+        }
+        if (!this.config.autoResolveTasks) {
             return false;
         }
         const status = response.status;

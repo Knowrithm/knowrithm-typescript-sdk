@@ -114,6 +114,7 @@ interface KnowrithmClientOptions {
   backoffMultiplier?: number;
   retryableStatusCodes?: number[];
   config?: Partial<KnowrithmConfig>;
+  autoResolveTasks?: boolean;
 }
 
 /**
@@ -179,6 +180,7 @@ export class KnowrithmClient {
       retryDelay,
       backoffMultiplier,
       retryableStatusCodes,
+      autoResolveTasks,
     } = options;
 
     if ((!apiKey || !apiSecret) && !bearerToken) {
@@ -216,6 +218,9 @@ export class KnowrithmClient {
     }
     if (retryableStatusCodes !== undefined) {
       mergedConfig.retryableStatusCodes = retryableStatusCodes;
+    }
+    if (autoResolveTasks !== undefined) {
+      mergedConfig.autoResolveTasks = autoResolveTasks;
     }
 
     this.config = new KnowrithmConfig(mergedConfig);
@@ -268,6 +273,10 @@ export class KnowrithmClient {
 
   private shouldResolveAsyncTask(response: AxiosResponse): boolean {
     if (!response) {
+      return false;
+    }
+
+    if (!this.config.autoResolveTasks) {
       return false;
     }
 
