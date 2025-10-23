@@ -254,25 +254,6 @@ class KnowrithmClient {
         return false;
     }
     extractTaskResult(payload) {
-        if (!payload || typeof payload !== 'object') {
-            return payload;
-        }
-        const attachTaskPayload = (result) => {
-            if (result && typeof result === 'object' && !Array.isArray(result)) {
-                // include full status payload for consumers that need metadata
-                return {
-                    ...result,
-                    taskStatusPayload: payload,
-                };
-            }
-            return result;
-        };
-        if (payload.result !== undefined) {
-            return attachTaskPayload(payload.result);
-        }
-        if (payload.data !== undefined) {
-            return attachTaskPayload(payload.data);
-        }
         return payload;
     }
     async resolveAsyncTask(response, requestHeaders, timeout, operationName) {

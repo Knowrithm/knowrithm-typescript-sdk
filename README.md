@@ -125,9 +125,7 @@ const reply = await client.messages.sendMessage(
 console.log(`${reply.role}: ${reply.content}`);
 ```
 
-> **Automatic polling.** The client waits for each asynchronous task (agent creation, document ingestion, message generation, etc.) and returns the completed payload once the task succeeds. If you prefer to manage polling manually, set `autoResolveTasks: false`. When a task fails, a `KnowrithmAPIError` is raised with the task details.
->
-> When a task resolves automatically, the returned object includes a `taskStatusPayload` property containing the full status response for auditing or debugging.
+> **Automatic polling.** The client waits for each asynchronous task (agent creation, document ingestion, message generation, etc.) and returns the final task status payload once the task succeeds. If you prefer to manage polling manually, set `autoResolveTasks: false`. When a task fails, a `KnowrithmAPIError` is raised with the task details the backend provides.
 
 ---
 
