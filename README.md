@@ -80,7 +80,7 @@ const client = new KnowrithmClient({
   apiSecret: 'your-api-secret',
 });
 
-// Create an agent (enable autoResolveTasks to resolve async tasks automatically)
+// Create an agent (async tasks resolve automatically by default)
 const agent = await client.agents.createAgent({
   name: 'Support Bot',
   description: 'Customer support assistant',
@@ -125,7 +125,9 @@ const reply = await client.messages.sendMessage(
 console.log(`${reply.role}: ${reply.content}`);
 ```
 
-> **Optional automatic polling.** Set `autoResolveTasks: true` when constructing the client to have the SDK wait for asynchronous tasks (agent creation, document ingestion, message generation, etc.) and return the completed payload once the task succeeds. If the task fails, a `KnowrithmAPIError` is raised with the task details.
+> **Automatic polling.** The client waits for each asynchronous task (agent creation, document ingestion, message generation, etc.) and returns the completed payload once the task succeeds. If you prefer to manage polling manually, set `autoResolveTasks: false`. When a task fails, a `KnowrithmAPIError` is raised with the task details.
+>
+> When a task resolves automatically, the returned object includes a `taskStatusPayload` property containing the full status response for auditing or debugging.
 
 ---
 
@@ -215,19 +217,18 @@ Timeout-related failures now include additional context in the thrown `Knowrithm
 
 ## Automatic Task Resolution
 
-Many Knowrithm endpoints are asynchronous and normally respond with HTTP `202 Accepted` plus a `task_id`. When you enable `autoResolveTasks` on the client, the SDK resolves those tasks for you:
+Many Knowrithm endpoints are asynchronous and normally respond with HTTP `202 Accepted` plus a `task_id`. By default, the SDK resolves those tasks for you:
 
 - The initial `202` response (or any payload containing `status_url`/`task_id`) triggers a background poll of `/api/v1/tasks/<task_id>/status`.
 - Successful task responses resolve to the task's `result` (or `data`) so your method call returns the *final* API payload.
 - Failed tasks throw a `KnowrithmAPIError` that includes the task metadata, status, and error message from the backend.
 
-You can enable and tune the polling behaviour through the client configuration:
+You can tune the polling behaviour (or disable it) through the client configuration:
 
 ```typescript
 const client = new KnowrithmClient({
   apiKey: process.env.KNOWRITHM_KEY!,
   apiSecret: process.env.KNOWRITHM_SECRET!,
-  autoResolveTasks: true,
   taskPollingInterval: 1_500,    // milliseconds between polls (default: 1000)
   taskPollingTimeout: 180_000,   // total wait time in ms (default: 120000)
   taskSuccessStatuses: ['completed', 'success'],
@@ -235,7 +236,7 @@ const client = new KnowrithmClient({
 });
 ```
 
-If a task does not complete before the timeout, the promise rejects with a `KnowrithmAPIError` indicating the last known payload and status URL. Use shorter intervals for rapid feedback, or longer timeouts for large document ingestions and analytics exports.
+If a task does not complete before the timeout, the promise rejects with a `KnowrithmAPIError` indicating the last known payload and status URL. Use shorter intervals for rapid feedback, or longer timeouts for large document ingestions and analytics exports. Set `autoResolveTasks: false` if you want to handle polling yourself.
 
 ---
 

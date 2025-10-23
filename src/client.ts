@@ -375,12 +375,23 @@ export class KnowrithmClient {
       return payload;
     }
 
+    const attachTaskPayload = (result: any) => {
+      if (result && typeof result === 'object' && !Array.isArray(result)) {
+        // include full status payload for consumers that need metadata
+        return {
+          ...result,
+          taskStatusPayload: payload,
+        };
+      }
+      return result;
+    };
+
     if (payload.result !== undefined) {
-      return payload.result;
+      return attachTaskPayload(payload.result);
     }
 
     if (payload.data !== undefined) {
-      return payload.data;
+      return attachTaskPayload(payload.data);
     }
 
     return payload;

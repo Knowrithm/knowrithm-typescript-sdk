@@ -23,7 +23,7 @@ class KnowrithmConfig {
             ['success', 'completed', 'finished', 'done', 'succeeded']).map((status) => status.toLowerCase());
         this.taskFailureStatuses = (options?.taskFailureStatuses ??
             ['failed', 'failure', 'error', 'cancelled', 'timeout', 'revoked']).map((status) => status.toLowerCase());
-        this.autoResolveTasks = options?.autoResolveTasks ?? false;
+        this.autoResolveTasks = options?.autoResolveTasks ?? true;
     }
 }
 exports.KnowrithmConfig = KnowrithmConfig;
